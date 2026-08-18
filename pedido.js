@@ -31,6 +31,8 @@ const pedidoApp = (function () {
     let categories = new Set();
     let currentCategory = 'Todos';
     let searchQuery = '';
+    let lastPlacedOrderId = null;
+    let trackerRealtimeChannel = null;
 
     // Customization variables
     let currentCustomizeProduct = null;
@@ -55,6 +57,28 @@ const pedidoApp = (function () {
     // --- ID Generator ---
     function generateId() {
         return `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    // --- Local Storage de Pedidos Recentes ---
+    function saveRecentOrderId(orderId) {
+        if (!orderId) return;
+        lastPlacedOrderId = String(orderId);
+        try {
+            let recent = JSON.parse(localStorage.getItem('edu_recent_orders') || '[]');
+            recent = recent.filter(id => id !== String(orderId));
+            recent.unshift(String(orderId));
+            localStorage.setItem('edu_recent_orders', JSON.stringify(recent.slice(0, 10)));
+        } catch(e) {
+            console.warn('Erro ao salvar pedido recente no storage:', e);
+        }
+    }
+
+    function getRecentOrders() {
+        try {
+            return JSON.parse(localStorage.getItem('edu_recent_orders') || '[]');
+        } catch(e) {
+            return [];
+        }
     }
 
     // --- Load Products from Supabase ---
@@ -125,7 +149,7 @@ const pedidoApp = (function () {
             .subscribe();
     }
 
-    // --- Search Filter ---
+    // --- Search Filter (Menu) ---
     function filterSearch(query) {
         searchQuery = (query || '').trim().toLowerCase();
         const clearBtn = document.getElementById('search-clear-btn');
@@ -151,7 +175,6 @@ const pedidoApp = (function () {
             const btn = document.createElement('button');
             btn.className = `cat-btn ${currentCategory === cat ? 'active' : ''}`;
             
-            // Icon according to category
             let icon = 'fa-tag';
             const catLower = cat.toLowerCase();
             if (cat === 'Todos') icon = 'fa-utensils';
@@ -270,6 +293,13 @@ const pedidoApp = (function () {
     function closeModal(id) {
         const m = document.getElementById(id);
         if (m) m.classList.remove('active');
+        if (id === 'tracker-modal' && trackerRealtimeChannel) {
+            const client = getSupabaseClient();
+            if (client && trackerRealtimeChannel) {
+                client.removeChannel(trackerRealtimeChannel);
+                trackerRealtimeChannel = null;
+            }
+        }
     }
 
     function openCustomizeModal(productId) {
@@ -874,8 +904,9 @@ const pedidoApp = (function () {
             };
         });
 
+        const orderId = id || generateId();
         const order = {
-            id: id || generateId(),
+            id: orderId,
             client_name: clientName,
             client_phone: clientPhone,
             items,
@@ -893,6 +924,8 @@ const pedidoApp = (function () {
             console.error('Erro ao salvar pedido web:', error.message, error.details, error.hint);
             throw new Error(error.message || JSON.stringify(error));
         }
+        
+        saveRecentOrderId(orderId);
         return order;
     }
 
@@ -946,6 +979,9 @@ const pedidoApp = (function () {
             pixPollingInterval = null;
         }
 
+        lastPlacedOrderId = String(paymentId);
+        saveRecentOrderId(paymentId);
+
         const waitingState = document.getElementById('pix-waiting-state');
         const approvedState = document.getElementById('pix-approved-state');
         const summaryEl = document.getElementById('pix-approved-summary');
@@ -961,6 +997,12 @@ const pedidoApp = (function () {
                 <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);">Status: <span style="color: #10b981; font-weight: 800;">✅ Pago & Enviado à Cozinha</span></div>
             `;
         }
+    }
+
+    function openTrackerFromSuccess() {
+        const orderIdToOpen = lastPlacedOrderId;
+        closeCheckoutForm();
+        openTrackerModal(orderIdToOpen);
     }
 
     // --- Seletor de Método de Pagamento ---
@@ -985,7 +1027,6 @@ const pedidoApp = (function () {
         if (btnEl) btnEl.classList.add('active');
 
         if (method === 'bankTransfer') {
-            // PIX: mostra painel de confirmação direto
             document.getElementById('wallet_container').style.display = 'none';
             document.getElementById('wallet_container').innerHTML = '';
             document.getElementById('pix-action-container').style.display = 'block';
@@ -994,7 +1035,6 @@ const pedidoApp = (function () {
                 paymentBrickController = null;
             }
         } else {
-            // Cartão de Crédito ou Débito: usa o Card Payment Brick universal
             document.getElementById('pix-action-container').style.display = 'none';
             const container = document.getElementById('wallet_container');
             container.style.display = 'block';
@@ -1030,10 +1070,6 @@ const pedidoApp = (function () {
 
         try {
             const bricksBuilder = mp.bricks();
-            
-            // Configuração do Card Payment Brick:
-            // Para Débito: maxInstallments = 1 (à vista em qualquer bandeira)
-            // Para Crédito: maxInstallments = 12 (parcelamento)
             const isDebit = paymentMethodFilter === 'debitCard';
 
             const settings = {
@@ -1096,7 +1132,7 @@ const pedidoApp = (function () {
                             const paymentOk = response.ok && (data.status === 'approved' || data.status === 'pending');
 
                             if (paymentOk) {
-                                await saveWebOrder({
+                                const createdOrder = await saveWebOrder({
                                     id: String(data.id),
                                     clientName: `${name} ${lastname}`,
                                     clientPhone: phone,
@@ -1109,6 +1145,7 @@ const pedidoApp = (function () {
                                 cart = [];
                                 updateCartUI();
                                 closeCheckoutForm();
+                                openTrackerModal(createdOrder.id);
                             } else {
                                 await restoreStockAtomically(deductedItems);
                                 alert(`Pagamento não aprovado: ${data.status_detail || data.error || 'Tente novamente.'}`);
@@ -1258,7 +1295,7 @@ const pedidoApp = (function () {
         try {
             deductedItems = await deductStockAtomically();
 
-            await saveWebOrder({
+            const createdOrder = await saveWebOrder({
                 clientName: `${name} ${lastname}`,
                 clientPhone: phone,
                 observation: obs,
@@ -1269,6 +1306,7 @@ const pedidoApp = (function () {
             cart = [];
             updateCartUI();
             closeCheckoutForm();
+            openTrackerModal(createdOrder.id);
         } catch(e) {
             console.error('Erro no processCheckout:', e);
             await restoreStockAtomically(deductedItems);
@@ -1279,6 +1317,303 @@ const pedidoApp = (function () {
                 btn.innerHTML = '<i class="fa-solid fa-credit-card"></i> Confirmar pedido';
             }
         }
+    }
+
+    // =========================================================
+    // MODULO DE ACOMPANHAMENTO DE STATUS DE PEDIDOS (TRACKER)
+    // =========================================================
+    function openTrackerModal(orderIdToTrack = null) {
+        openModal('tracker-modal');
+        renderRecentOrdersChips(orderIdToTrack);
+
+        const input = document.getElementById('tracker-search-input');
+        if (orderIdToTrack) {
+            if (input) input.value = orderIdToTrack;
+            searchOrders(orderIdToTrack);
+        } else {
+            const recent = getRecentOrders();
+            if (recent.length > 0) {
+                if (input) input.value = recent[0];
+                searchOrders(recent[0]);
+            }
+        }
+    }
+
+    function renderRecentOrdersChips(activeId = null) {
+        const container = document.getElementById('recent-orders-container');
+        const chipsWrap = document.getElementById('recent-orders-chips');
+        if (!container || !chipsWrap) return;
+
+        const recent = getRecentOrders();
+        if (recent.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'flex';
+        chipsWrap.innerHTML = '';
+
+        recent.forEach(id => {
+            const chip = document.createElement('div');
+            chip.className = `recent-order-chip ${activeId === id ? 'active' : ''}`;
+            chip.innerHTML = `<i class="fa-solid fa-receipt"></i> #${id.slice(-6)}`;
+            chip.onclick = () => {
+                const input = document.getElementById('tracker-search-input');
+                if (input) input.value = id;
+                renderRecentOrdersChips(id);
+                searchOrders(id);
+            };
+            chipsWrap.appendChild(chip);
+        });
+    }
+
+    async function searchOrders(query) {
+        const resultContainer = document.getElementById('tracker-result-container');
+        if (!resultContainer) return;
+
+        const cleanQuery = (query || '').trim();
+        if (!cleanQuery) {
+            resultContainer.innerHTML = `
+                <div style="text-align: center; padding: 36px 16px; color: var(--text-muted);">
+                    <i class="fa-solid fa-clock-rotate-left" style="font-size: 2.4rem; margin-bottom: 12px; opacity: 0.5;"></i>
+                    <p style="font-weight: 700; font-size: 1rem; color: var(--text-secondary);">Consulte seu pedido em tempo real</p>
+                    <span style="font-size: 0.85rem;">Digite o WhatsApp informado na compra ou o número do pedido acima.</span>
+                </div>
+            `;
+            return;
+        }
+
+        resultContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 12px;"></i>
+                <p style="font-weight: 600; font-size: 0.95rem; color: var(--text-secondary);">Localizando seu pedido...</p>
+            </div>
+        `;
+
+        try {
+            const client = getSupabaseClient();
+            if (!client) throw new Error('Falha de conexão.');
+
+            const digitsOnly = cleanQuery.replace(/\D/g, '');
+
+            // 1. Busca na tabela web_orders
+            let orders = [];
+            
+            // Busca por ID exato
+            const { data: byId } = await client.from('web_orders').select('*').eq('id', cleanQuery);
+            if (byId && byId.length > 0) orders.push(...byId);
+
+            // Se não achou ou se for busca por telefone (mais de 6 dígitos)
+            if (orders.length === 0 && digitsOnly.length >= 6) {
+                const { data: byPhone } = await client.from('web_orders').select('*').ilike('client_phone', `%${digitsOnly}%`).order('created_at', { ascending: false }).limit(5);
+                if (byPhone && byPhone.length > 0) orders.push(...byPhone);
+            }
+
+            // Se ainda não achou, tenta por ID parcial
+            if (orders.length === 0) {
+                const { data: byLikeId } = await client.from('web_orders').select('*').ilike('id', `%${cleanQuery}%`).order('created_at', { ascending: false }).limit(3);
+                if (byLikeId && byLikeId.length > 0) orders.push(...byLikeId);
+            }
+
+            if (orders.length === 0) {
+                resultContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
+                        <i class="fa-solid fa-circle-exclamation" style="font-size: 2.2rem; color: var(--danger); margin-bottom: 12px;"></i>
+                        <p style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">Nenhum pedido encontrado</p>
+                        <span style="font-size: 0.85rem; display: block; margin-top: 4px;">Verifique o número do WhatsApp ou código informado e tente novamente.</span>
+                    </div>
+                `;
+                return;
+            }
+
+            // Exibe o pedido mais recente encontrado
+            const order = orders[0];
+            
+            // Verifica também se há comanda atualizada no PDV correspondente
+            const { data: comandaData } = await client.from('comandas').select('*').eq('id', order.id).maybeSingle();
+            
+            renderOrderStatusCard(order, comandaData);
+            setupRealtimeOrderTracker(order.id);
+
+        } catch(err) {
+            console.error('Erro na busca de pedidos:', err);
+            resultContainer.innerHTML = `
+                <div style="text-align: center; padding: 30px; color: var(--danger);">
+                    <p style="font-weight: 700;">Erro ao consultar pedido</p>
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">${err.message || 'Tente novamente em instantes.'}</span>
+                </div>
+            `;
+        }
+    }
+
+    function renderOrderStatusCard(order, comanda) {
+        const resultContainer = document.getElementById('tracker-result-container');
+        if (!resultContainer) return;
+
+        // Determina o status consolidado
+        let currentStatus = order.status || 'pending';
+        let isPaid = order.payment_status === 'approved' || (comanda && comanda.paid === true);
+        
+        if (comanda) {
+            if (comanda.status === 'ready') currentStatus = 'ready';
+            else if (comanda.status === 'closed') currentStatus = 'closed';
+            else if (comanda.status === 'open' && isPaid) currentStatus = 'pending';
+        }
+
+        // Stepper:
+        // 1 = Aguardando Pagamento (waiting_payment)
+        // 2 = Em Preparo na Cozinha (pending / open)
+        // 3 = Pronto para Retirada (ready)
+        // 4 = Entregue / Concluído (closed / delivered)
+        let step = 2; // Default: em preparo
+        let badgeClass = 'badge-status-preparing';
+        let badgeLabel = '<i class="fa-solid fa-fire-burner"></i> Em Preparo na Cozinha';
+        let progressWidth = '45%';
+
+        if (!isPaid && (currentStatus === 'waiting_payment' || order.payment_status === 'pending')) {
+            step = 1;
+            badgeClass = 'badge-status-waiting';
+            badgeLabel = '<i class="fa-solid fa-clock"></i> Aguardando Pagamento';
+            progressWidth = '15%';
+        } else if (currentStatus === 'ready') {
+            step = 3;
+            badgeClass = 'badge-status-ready';
+            badgeLabel = '<i class="fa-solid fa-bell"></i> Pronto para Retirada!';
+            progressWidth = '75%';
+        } else if (currentStatus === 'closed' || currentStatus === 'delivered') {
+            step = 4;
+            badgeClass = 'badge-status-closed';
+            badgeLabel = '<i class="fa-solid fa-circle-check"></i> Pedido Entregue';
+            progressWidth = '100%';
+        } else if (currentStatus === 'canceled') {
+            step = 0;
+            badgeClass = 'badge-status-canceled';
+            badgeLabel = '<i class="fa-solid fa-ban"></i> Pedido Cancelado';
+            progressWidth = '0%';
+        }
+
+        // Formatação de data
+        const dateObj = new Date(order.created_at || Date.now());
+        const timeStr = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = dateObj.toLocaleDateString('pt-BR');
+
+        // Itens
+        let itemsHtml = '';
+        const items = Array.isArray(order.items) ? order.items : [];
+        items.forEach(it => {
+            const qty = it.qty || 1;
+            const price = Number(it.price || it.subtotal || 0);
+            itemsHtml += `
+                <div class="order-item-mini">
+                    <div>
+                        <span><strong>${qty}x</strong> ${it.name || 'Item'}</span>
+                    </div>
+                    <div style="font-weight: 700; color: var(--primary);">R$ ${(price * qty).toFixed(2).replace('.', ',')}</div>
+                </div>
+            `;
+        });
+
+        resultContainer.innerHTML = `
+            <div class="order-status-card">
+                <div class="order-status-header">
+                    <div>
+                        <div class="order-status-id">Pedido #${String(order.id).slice(-6)}</div>
+                        <div class="order-status-time"><i class="fa-regular fa-clock"></i> ${dateStr} às ${timeStr}</div>
+                    </div>
+                    <span class="order-badge-status ${badgeClass}">${badgeLabel}</span>
+                </div>
+
+                <!-- Stepper -->
+                <div class="order-stepper">
+                    <div class="order-stepper-progress" style="width: ${progressWidth};"></div>
+                    
+                    <div class="step-item ${step >= 1 ? (step === 1 ? 'active' : 'completed') : ''}">
+                        <div class="step-circle"><i class="fa-solid fa-receipt"></i></div>
+                        <span class="step-label">Recebido</span>
+                    </div>
+                    <div class="step-item ${step >= 2 ? (step === 2 ? 'active' : 'completed') : ''}">
+                        <div class="step-circle"><i class="fa-solid fa-fire"></i></div>
+                        <span class="step-label">Na Grelha</span>
+                    </div>
+                    <div class="step-item ${step >= 3 ? (step === 3 ? 'active' : 'completed') : ''}">
+                        <div class="step-circle"><i class="fa-solid fa-bell"></i></div>
+                        <span class="step-label">Pronto</span>
+                    </div>
+                    <div class="step-item ${step >= 4 ? 'completed' : ''}">
+                        <div class="step-circle"><i class="fa-solid fa-check"></i></div>
+                        <span class="step-label">Entregue</span>
+                    </div>
+                </div>
+
+                ${currentStatus === 'ready' ? `
+                    <div style="background: rgba(16, 185, 129, 0.15); border: 1.5px solid var(--success); border-radius: var(--r-md); padding: 14px; text-align: center; color: var(--success); font-weight: 800; animation: pulse-ready 2s infinite;">
+                        <i class="fa-solid fa-bell" style="font-size: 1.3rem; margin-bottom: 4px; display:block;"></i>
+                        🎉 SEU PEDIDO ESTÁ PRONTO! PODE RETIRAR NO BALCÃO!
+                    </div>
+                ` : ''}
+
+                <!-- Detalhes do Pedido -->
+                <div class="order-details-box">
+                    <div class="order-info-row">
+                        <span>Cliente:</span>
+                        <strong>${order.client_name || 'Cliente'}</strong>
+                    </div>
+                    <div class="order-info-row">
+                        <span>WhatsApp:</span>
+                        <strong>${order.client_phone || '-'}</strong>
+                    </div>
+                    ${order.observation ? `
+                    <div class="order-info-row">
+                        <span>Obs:</span>
+                        <strong style="color: var(--text-muted);">${order.observation}</strong>
+                    </div>` : ''}
+                    
+                    <div class="order-items-mini-list">
+                        ${itemsHtml}
+                    </div>
+
+                    <div class="order-info-row" style="margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 1rem;">
+                        <span>Total:</span>
+                        <strong style="font-family:'Outfit', sans-serif; font-size: 1.25rem; color: var(--primary);">R$ ${Number(order.total || 0).toFixed(2).replace('.', ',')}</strong>
+                    </div>
+                </div>
+
+                <div class="order-live-ping">
+                    <i class="fa-solid fa-circle-dot fa-beat" style="color: var(--info);"></i>
+                    <span>Acompanhamento em tempo real com a cozinha</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function setupRealtimeOrderTracker(orderId) {
+        const client = getSupabaseClient();
+        if (!client || !orderId) return;
+
+        if (trackerRealtimeChannel) {
+            client.removeChannel(trackerRealtimeChannel);
+        }
+
+        trackerRealtimeChannel = client.channel(`tracker-order-${orderId}`)
+            .on('postgres_changes', { 
+                event: 'UPDATE', 
+                schema: 'public', 
+                table: 'web_orders', 
+                filter: `id=eq.${orderId}` 
+            }, async payload => {
+                const { data: comanda } = await client.from('comandas').select('*').eq('id', orderId).maybeSingle();
+                renderOrderStatusCard(payload.new, comanda);
+            })
+            .on('postgres_changes', { 
+                event: 'UPDATE', 
+                schema: 'public', 
+                table: 'comandas', 
+                filter: `id=eq.${orderId}` 
+            }, async payload => {
+                const { data: webOrder } = await client.from('web_orders').select('*').eq('id', orderId).maybeSingle();
+                if (webOrder) renderOrderStatusCard(webOrder, payload.new);
+            })
+            .subscribe();
     }
 
     // --- Inicialização ---
@@ -1304,6 +1639,9 @@ const pedidoApp = (function () {
         processPixPayment,
         copyPixCode,
         filterSearch,
-        clearSearch
+        clearSearch,
+        openTrackerModal,
+        openTrackerFromSuccess,
+        searchOrders
     };
 })();

@@ -33,6 +33,8 @@
     --danger-light: rgba(239, 68, 68, 0.12);
     --info: #38bdf8;
     --info-light: rgba(56, 189, 248, 0.12);
+    --warning: #f59e0b;
+    --warning-light: rgba(245, 158, 11, 0.12);
 
     /* Borders & Dividers */
     --border: rgba(255, 255, 255, 0.08);
@@ -190,7 +192,7 @@ img {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px;
 }
 
 .brand {
@@ -243,6 +245,31 @@ img {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.header-track-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: var(--r-full);
+    transition: all var(--dur-fast);
+    white-space: nowrap;
+}
+
+.header-track-btn i {
+    color: var(--primary);
+}
+
+.header-track-btn:hover {
+    background: var(--bg-elevated);
+    border-color: var(--primary);
+    box-shadow: 0 0 12px var(--primary-glow);
 }
 
 .header-status-badge {
@@ -1773,6 +1800,329 @@ img {
 .btn-pix-close:hover {
     border-color: var(--text-muted);
     color: var(--text-primary);
+}
+
+/* =========================================================
+   ORDER TRACKER / MEUS PEDIDOS (NOVO)
+   ========================================================= */
+.tracker-modal-sheet {
+    max-height: 92dvh;
+}
+
+.tracker-search-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.tracker-input {
+    flex: 1;
+    padding: 12px 14px;
+    background: var(--bg-elevated);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    color: var(--text-primary);
+    font-size: 0.92rem;
+    outline: none;
+    transition: all var(--dur-fast);
+}
+
+.tracker-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.btn-tracker-search {
+    padding: 0 20px;
+    background: var(--primary);
+    color: #0b0f19;
+    font-weight: 800;
+    font-size: 0.9rem;
+    border-radius: var(--r-md);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all var(--dur-fast);
+    flex-shrink: 0;
+}
+
+.btn-tracker-search:hover {
+    background: var(--primary-hover);
+}
+
+.recent-orders-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.recent-orders-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.recent-orders-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+
+.recent-orders-chips::-webkit-scrollbar {
+    display: none;
+}
+
+.recent-order-chip {
+    padding: 6px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-full);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all var(--dur-fast);
+}
+
+.recent-order-chip:hover, .recent-order-chip.active {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+/* Order Status Card & Stepper */
+.order-status-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-xl);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.order-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.order-status-id {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.order-status-time {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.order-badge-status {
+    padding: 6px 12px;
+    border-radius: var(--r-full);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-status-waiting {
+    background: var(--warning-light);
+    color: var(--warning);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-status-preparing {
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--info);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.badge-status-ready {
+    background: var(--success-light);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.25);
+    animation: pulse-ready 2s infinite;
+}
+
+@keyframes pulse-ready {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+}
+
+.badge-status-closed {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-secondary);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.badge-status-canceled {
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Stepper Progress Bar */
+.order-stepper {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    margin: 10px 0;
+}
+
+.order-stepper::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    background: var(--bg-elevated);
+    z-index: 1;
+}
+
+.order-stepper-progress {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    height: 3px;
+    background: var(--success);
+    z-index: 2;
+    transition: width 0.5s var(--ease-out);
+}
+
+.step-item {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+
+.step-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: var(--r-full);
+    background: var(--bg-elevated);
+    border: 2px solid var(--border-strong);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all var(--dur-normal) var(--ease-out);
+}
+
+.step-item.active .step-circle {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #0b0f19;
+    box-shadow: 0 0 16px var(--primary-glow);
+}
+
+.step-item.completed .step-circle {
+    background: var(--success);
+    border-color: var(--success);
+    color: #ffffff;
+}
+
+.step-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.2;
+}
+
+.step-item.active .step-label {
+    color: var(--text-primary);
+}
+
+.step-item.completed .step-label {
+    color: var(--success);
+}
+
+/* Order Details inside Card */
+.order-details-box {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.order-info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.order-info-row strong {
+    color: var(--text-primary);
+}
+
+.order-items-mini-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.order-item-mini {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+}
+
+.order-item-mini span {
+    color: var(--text-primary);
+}
+
+.order-item-mini-mods {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.order-live-ping {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--info);
+    background: rgba(56, 189, 248, 0.08);
+    padding: 8px;
+    border-radius: var(--r-md);
+    border: 1px solid rgba(56, 189, 248, 0.2);
 }
 
 /* =========================================================

@@ -54,6 +54,10 @@
             </div>
         </div>
         <div class="header-right">
+            <button type="button" class="header-track-btn" onclick="pedidoApp.openTrackerModal()" title="Consultar status do seu pedido">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Meus Pedidos</span>
+            </button>
             <div class="header-status-badge">
                 <span class="status-dot"></span>
                 <span>Aberto agora</span>
@@ -242,6 +246,53 @@
                     <i class="fa-solid fa-bag-shopping"></i>
                     Adicionar à sacola
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================
+     MODAL ACOMPANHAR PEDIDO / MEUS PEDIDOS
+     ========================================================= -->
+<div class="sheet-overlay" id="tracker-modal" onclick="if(event.target===this) pedidoApp.closeModal('tracker-modal')">
+    <div class="bottom-sheet tracker-modal-sheet">
+        <div class="sheet-handle"></div>
+
+        <div class="sheet-header">
+            <h2 class="sheet-title">
+                <i class="fa-solid fa-receipt" style="color:var(--primary); font-size:1.1rem; margin-right:6px;"></i>
+                Acompanhar Pedido
+            </h2>
+            <button class="btn-icon" onclick="pedidoApp.closeModal('tracker-modal')" aria-label="Fechar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="sheet-body">
+            <!-- Campo de Busca -->
+            <div class="tracker-search-box">
+                <input type="text" id="tracker-search-input" class="tracker-input"
+                    placeholder="Digite seu WhatsApp ou Código do Pedido..."
+                    onkeyup="if(event.key==='Enter') pedidoApp.searchOrders(this.value)">
+                <button type="button" class="btn-tracker-search" onclick="pedidoApp.searchOrders(document.getElementById('tracker-search-input').value)">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Buscar
+                </button>
+            </div>
+
+            <!-- Chips de Pedidos Recentes salvos localmente -->
+            <div id="recent-orders-container" class="recent-orders-bar" style="display:none;">
+                <span class="recent-orders-title">Seus Pedidos Recentes:</span>
+                <div id="recent-orders-chips" class="recent-orders-chips"></div>
+            </div>
+
+            <!-- Resultado / Status do Pedido -->
+            <div id="tracker-result-container">
+                <div style="text-align: center; padding: 36px 16px; color: var(--text-muted);">
+                    <i class="fa-solid fa-clock-rotate-left" style="font-size: 2.4rem; margin-bottom: 12px; opacity: 0.5;"></i>
+                    <p style="font-weight: 700; font-size: 1rem; color: var(--text-secondary);">Consulte seu pedido em tempo real</p>
+                    <span style="font-size: 0.85rem;">Digite o WhatsApp informado na compra ou o número do pedido acima.</span>
+                </div>
             </div>
         </div>
     </div>
@@ -443,10 +494,16 @@
                 <div id="pix-approved-summary" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: left; margin-bottom: 24px;">
                 </div>
 
-                <button type="button" class="btn-checkout-pay" style="width: 100%;" onclick="pedidoApp.closeCheckoutForm()">
-                    <i class="fa-solid fa-utensils"></i>
-                    Fazer Novo Pedido
-                </button>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button type="button" id="btn-view-status-now" class="btn-primary-solid" style="width: 100%;" onclick="pedidoApp.openTrackerFromSuccess()">
+                        <i class="fa-solid fa-receipt"></i>
+                        Acompanhar Status do Pedido
+                    </button>
+                    <button type="button" class="btn-ghost" style="width: 100%;" onclick="pedidoApp.closeCheckoutForm()">
+                        <i class="fa-solid fa-utensils"></i>
+                        Fazer Novo Pedido
+                    </button>
+                </div>
             </div>
 
         </div>
