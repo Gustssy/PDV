@@ -30,6 +30,7 @@ const pedidoApp = (function () {
     let cart = []; // Array of { product, quantity, variations, addons }
     let categories = new Set();
     let currentCategory = 'Todos';
+    let searchQuery = '';
 
     // Customization variables
     let currentCustomizeProduct = null;
@@ -41,7 +42,7 @@ const pedidoApp = (function () {
     const VARIATIONS_INGREDIENTS = ['Sem Cebola', 'Sem Pimentão', 'Sem Tomate', 'Sem Alface', 'Sem Maionese'];
     const VARIATIONS_EXTRAS = ['Embalar pra Viagem'];
 
-    // --- Loading ---
+    // --- Loading Overlay ---
     function showLoading() {
         const el = document.getElementById('loading-overlay');
         if (el) el.style.display = 'flex';
@@ -124,15 +125,43 @@ const pedidoApp = (function () {
             .subscribe();
     }
 
+    // --- Search Filter ---
+    function filterSearch(query) {
+        searchQuery = (query || '').trim().toLowerCase();
+        const clearBtn = document.getElementById('search-clear-btn');
+        if (clearBtn) {
+            clearBtn.style.display = searchQuery ? 'block' : 'none';
+        }
+        renderProducts();
+    }
+
+    function clearSearch() {
+        const input = document.getElementById('search-input');
+        if (input) input.value = '';
+        filterSearch('');
+    }
+
     // --- Render Categories ---
     function renderCategories() {
         const container = document.getElementById('categories-nav');
+        if (!container) return;
         container.innerHTML = '';
 
         categories.forEach(cat => {
             const btn = document.createElement('button');
             btn.className = `cat-btn ${currentCategory === cat ? 'active' : ''}`;
-            btn.textContent = cat;
+            
+            // Icon according to category
+            let icon = 'fa-tag';
+            const catLower = cat.toLowerCase();
+            if (cat === 'Todos') icon = 'fa-utensils';
+            else if (catLower.includes('espeto')) icon = 'fa-fire';
+            else if (catLower.includes('lanche') || catLower.includes('burger')) icon = 'fa-burger';
+            else if (catLower.includes('bebida') || catLower.includes('refrigerante') || catLower.includes('cerveja')) icon = 'fa-wine-bottle';
+            else if (catLower.includes('porcao') || catLower.includes('porção')) icon = 'fa-bowl-food';
+            else if (catLower.includes('sobremesa')) icon = 'fa-ice-cream';
+
+            btn.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${cat}</span>`;
             btn.onclick = () => {
                 currentCategory = cat;
                 renderCategories();
@@ -145,11 +174,40 @@ const pedidoApp = (function () {
     // --- Render Products ---
     function renderProducts() {
         const container = document.getElementById('products-grid');
+        const titleEl = document.getElementById('current-category-title');
+        const counterEl = document.getElementById('products-counter');
+        if (!container) return;
         container.innerHTML = '';
 
-        const filtered = currentCategory === 'Todos'
+        let filtered = currentCategory === 'Todos'
             ? products
             : products.filter(p => p.category === currentCategory);
+
+        if (searchQuery) {
+            filtered = filtered.filter(p => 
+                (p.name && p.name.toLowerCase().includes(searchQuery)) ||
+                (p.category && p.category.toLowerCase().includes(searchQuery)) ||
+                (p.description && p.description.toLowerCase().includes(searchQuery))
+            );
+        }
+
+        if (titleEl) {
+            titleEl.innerHTML = `<i class="fa-solid fa-utensils"></i> <span>${currentCategory}</span>`;
+        }
+        if (counterEl) {
+            counterEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'item' : 'itens'}`;
+        }
+
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 48px 16px; color: var(--text-muted);">
+                    <i class="fa-solid fa-magnifying-glass" style="font-size: 2rem; margin-bottom: 12px; opacity: 0.5;"></i>
+                    <p style="font-weight: 600; font-size: 1rem; color: var(--text-secondary);">Nenhum produto encontrado</p>
+                    <span style="font-size: 0.85rem;">Tente buscar por outro termo ou categoria</span>
+                </div>
+            `;
+            return;
+        }
 
         filtered.forEach(p => {
             const qty = cart.filter(item => item.product.id === p.id).reduce((sum, item) => sum + item.quantity, 0);
@@ -164,40 +222,36 @@ const pedidoApp = (function () {
 
             let badgeHtml = '';
             if (isOutOfStock) {
-                badgeHtml = `<div class="product-badge badge-esgotado">Esgotado</div>`;
+                badgeHtml = `<span class="product-badge badge-esgotado">Esgotado</span>`;
             } else if (isLowStock) {
-                badgeHtml = `<div class="product-badge badge-ultimas">Últimas ${stock}</div>`;
+                badgeHtml = `<span class="product-badge badge-ultimas">Últimas ${stock}</span>`;
             }
 
             let actionHtml = '';
             if (isOutOfStock) {
-                actionHtml = `<span class="esgotado-label">Esgotado</span>`;
+                actionHtml = `<span class="esgotado-label">Indisponível</span>`;
             } else if (qty > 0) {
                 actionHtml = `
-                    <button class="btn-add-product has-qty" onclick="pedidoApp.openCustomizeModal('${p.id}')">
-                        ${qty} <i class="fa-solid fa-plus"></i>
+                    <button class="btn-add-product has-qty" onclick="pedidoApp.openCustomizeModal('${p.id}')" title="Alterar ou adicionar mais">
+                        <i class="fa-solid fa-check"></i> ${qty}
                     </button>
                 `;
             } else {
                 actionHtml = `
-                    <button class="btn-add-product" onclick="pedidoApp.openCustomizeModal('${p.id}')">
+                    <button class="btn-add-product" onclick="pedidoApp.openCustomizeModal('${p.id}')" title="Adicionar">
                         <i class="fa-solid fa-plus"></i>
                     </button>
                 `;
             }
 
-            let stockHtml = '';
-            if (!isComposed && !isOutOfStock) {
-                stockHtml = `<div class="product-stock" style="font-size: 0.75rem; color: var(--success); margin-top: 2px;">Disp: ${stock}</div>`;
-            } else if (!isComposed && isOutOfStock) {
-                stockHtml = `<div class="product-stock" style="font-size: 0.75rem; color: var(--danger); margin-top: 2px;">Disp: 0</div>`;
-            }
-
             card.innerHTML = `
-                ${badgeHtml}
-                <div class="product-name">${p.name}</div>
-                <div class="product-category">${p.category || ''}</div>
-                ${stockHtml}
+                <div class="product-card-top">
+                    <div class="product-badges-row">
+                        <span class="product-category-tag">${p.category || 'Geral'}</span>
+                        ${badgeHtml}
+                    </div>
+                    <div class="product-name">${p.name}</div>
+                </div>
                 <div class="product-footer">
                     <div class="product-price">R$ ${Number(p.price).toFixed(2).replace('.', ',')}</div>
                     ${actionHtml}
@@ -210,12 +264,12 @@ const pedidoApp = (function () {
     // --- Customization Modals ---
     function openModal(id) {
         const m = document.getElementById(id);
-        if(m) m.classList.add('active');
+        if (m) m.classList.add('active');
     }
 
     function closeModal(id) {
         const m = document.getElementById(id);
-        if(m) m.classList.remove('active');
+        if (m) m.classList.remove('active');
     }
 
     function openCustomizeModal(productId) {
@@ -228,7 +282,8 @@ const pedidoApp = (function () {
         
         // Defaults for variations based on category
         const isEspeto = prod.name.toLowerCase().includes('espeto') || (prod.category && prod.category.toLowerCase().includes('espeto'));
-        if (isEspeto) {
+        const isCarne = prod.name.toLowerCase().includes('carne') || prod.name.toLowerCase().includes('alcatra') || prod.name.toLowerCase().includes('picanha') || prod.name.toLowerCase().includes('contra');
+        if (isEspeto || isCarne) {
             currentCustomizeVariations = ['Ao Ponto'];
         }
 
@@ -292,8 +347,24 @@ const pedidoApp = (function () {
             (currentCustomizeProduct.category && currentCustomizeProduct.category.toLowerCase().includes('lanche'))
         );
 
-        document.getElementById('customize-addons-container').style.display = isLanche ? 'block' : 'none';
-        document.getElementById('customize-ingredients-container').style.display = isLanche ? 'block' : 'none';
+        const isBebida = currentCustomizeProduct && (
+            currentCustomizeProduct.category && currentCustomizeProduct.category.toLowerCase().includes('bebida')
+        );
+
+        const donenessContainer = document.getElementById('customize-doneness-container');
+        if (donenessContainer) {
+            donenessContainer.style.display = isBebida ? 'none' : 'block';
+        }
+
+        const addonsContainer = document.getElementById('customize-addons-container');
+        if (addonsContainer) {
+            addonsContainer.style.display = isLanche ? 'block' : 'none';
+        }
+
+        const ingredientsContainer = document.getElementById('customize-ingredients-container');
+        if (ingredientsContainer) {
+            ingredientsContainer.style.display = isLanche ? 'block' : 'none';
+        }
         
         const ingredientsList = document.getElementById('customize-variations-ingredients-list');
         if (ingredientsList && isLanche) {
@@ -310,7 +381,7 @@ const pedidoApp = (function () {
         }
 
         const donenessList = document.getElementById('customize-variations-doneness-list');
-        if (donenessList) {
+        if (donenessList && !isBebida) {
             donenessList.innerHTML = '';
             VARIATIONS_DONENESS.forEach(vari => {
                 const isSelected = currentCustomizeVariations.includes(vari);
@@ -327,7 +398,10 @@ const pedidoApp = (function () {
             });
         }
 
-        document.getElementById('customize-extras-container').style.display = 'block';
+        const extrasContainer = document.getElementById('customize-extras-container');
+        if (extrasContainer) {
+            extrasContainer.style.display = 'block';
+        }
         const extrasList = document.getElementById('customize-variations-extras-list');
         if (extrasList) {
             extrasList.innerHTML = '';
@@ -386,17 +460,17 @@ const pedidoApp = (function () {
             div.style.display = 'flex';
             div.style.justifyContent = 'space-between';
             div.style.alignItems = 'center';
-            div.style.background = 'rgba(0,0,0,0.2)';
+            div.style.background = 'var(--bg-elevated)';
             div.style.padding = '8px 12px';
-            div.style.borderRadius = 'var(--radius-md)';
-            div.style.marginBottom = '6px';
+            div.style.borderRadius = 'var(--r-md)';
+            div.style.border = '1px solid var(--border)';
             
             div.innerHTML = `
                 <div>
-                    <div style="font-weight: 500; font-size: 0.9rem;">${a.product.name}</div>
-                    <div style="color: var(--success); font-size: 0.8rem;">+ R$ ${Number(a.product.price).toFixed(2).replace('.', ',')}</div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">${a.product.name}</div>
+                    <div style="color: var(--success); font-size: 0.8rem; font-weight: 700;">+ R$ ${Number(a.product.price).toFixed(2).replace('.', ',')}</div>
                 </div>
-                <div class="qty-controls" style="transform: scale(0.85); transform-origin: right;">
+                <div class="qty-controls" style="display: flex; align-items: center; gap: 8px;">
                     <button type="button" class="qty-btn" onclick="pedidoApp.updateCustomizeAddonQty('${a.product.id}', -1)">-</button>
                     <span class="qty-value">${a.qty}</span>
                     <button type="button" class="qty-btn" onclick="pedidoApp.updateCustomizeAddonQty('${a.product.id}', 1)">+</button>
@@ -554,6 +628,7 @@ const pedidoApp = (function () {
         const cartFooter = document.getElementById('cart-footer');
         const { total, count } = getCartTotal();
 
+        if (!container) return;
         container.innerHTML = '';
 
         if (count === 0) {
@@ -561,7 +636,7 @@ const pedidoApp = (function () {
                 <div class="empty-cart">
                     <i class="fa-solid fa-bag-shopping empty-cart-icon"></i>
                     <p>Sua sacola está vazia</p>
-                    <span>Adicione itens do cardápio</span>
+                    <span>Escolha itens deliciosos do nosso cardápio!</span>
                 </div>`;
             if (totalModal) totalModal.textContent = 'R$ 0,00';
             if (cartFooter) cartFooter.style.display = 'none';
@@ -575,7 +650,6 @@ const pedidoApp = (function () {
         if (cartFooter) cartFooter.style.display = 'block';
         if (totalModal) totalModal.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
 
-        // Subtotal (sem adicionais separados — total já inclui tudo)
         const subtotalEl = document.getElementById('cart-subtotal');
         if (subtotalEl) subtotalEl.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
 
@@ -602,7 +676,7 @@ const pedidoApp = (function () {
                 </div>
                 <div class="cart-item-controls">
                     <button class="qty-btn remove-btn" onclick="pedidoApp.updateCartIndex(${index}, -1)" aria-label="Remover">
-                        <i class="fa-solid fa-minus"></i>
+                        <i class="fa-solid ${item.quantity === 1 ? 'fa-trash' : 'fa-minus'}"></i>
                     </button>
                     <span class="qty-value">${item.quantity}</span>
                     <button class="qty-btn" onclick="pedidoApp.updateCartIndex(${index}, 1)" aria-label="Adicionar">
@@ -616,9 +690,7 @@ const pedidoApp = (function () {
 
     // --- Checkout Form ---
     function openCheckoutForm() {
-        // Fecha o carrinho
         document.getElementById('cart-modal').classList.remove('active');
-        // Abre o checkout fullscreen
         document.getElementById('checkout-modal').classList.add('active');
 
         // Reset estado
@@ -627,9 +699,13 @@ const pedidoApp = (function () {
         document.getElementById('wallet_container').innerHTML = '';
         document.getElementById('pix-action-container').style.display = 'none';
         document.getElementById('pix-container').style.display = 'none';
+        
         const formWrapper = document.getElementById('checkout-form-wrapper');
         if (formWrapper) formWrapper.style.display = 'flex';
-        document.getElementById('btn-pay').style.display = 'none';
+        
+        const payBtn = document.getElementById('btn-pay');
+        if (payBtn) payBtn.style.display = 'none';
+        
         document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
         selectedPaymentMethodKey = null;
 
@@ -638,7 +714,6 @@ const pedidoApp = (function () {
             paymentBrickController = null;
         }
 
-        // Popula o resumo do pedido
         renderCheckoutSummary();
     }
 
@@ -648,6 +723,7 @@ const pedidoApp = (function () {
         const totalDisplay = document.getElementById('checkout-total-display');
         if (!list) return;
         list.innerHTML = '';
+
         cart.forEach(item => {
             let itemTotal = Number(item.product.price);
             let modsText = '';
@@ -664,7 +740,7 @@ const pedidoApp = (function () {
                 <div>
                     <div class="checkout-item-name">${item.product.name}</div>
                     ${modsText ? `<div class="checkout-item-mods">${modsText}</div>` : ''}
-                    <div class="checkout-item-qty">${item.quantity}x</div>
+                    <div class="checkout-item-qty">${item.quantity} unidade(s)</div>
                 </div>
                 <div class="checkout-item-price">R$ ${(itemTotal * item.quantity).toFixed(2).replace('.', ',')}</div>
             `;
@@ -682,7 +758,6 @@ const pedidoApp = (function () {
         const checkoutModal = document.getElementById('checkout-modal');
         if (checkoutModal) checkoutModal.classList.remove('active');
 
-        // Reseta visibilidade dos sub-painéis
         const formWrapper = document.getElementById('checkout-form-wrapper');
         const pixScreen = document.getElementById('pix-container');
         const waitingState = document.getElementById('pix-waiting-state');
@@ -693,7 +768,6 @@ const pedidoApp = (function () {
         if (waitingState) waitingState.style.display = 'block';
         if (approvedState) approvedState.style.display = 'none';
 
-        // Só mostra carrinho se tiver itens
         if (cart.length > 0) {
             const cartModal = document.getElementById('cart-modal');
             if (cartModal) cartModal.classList.add('active');
@@ -850,7 +924,7 @@ const pedidoApp = (function () {
                 .subscribe();
         }
 
-        // 2. Polling ativo a cada 2.5 segundos no backend Render
+        // 2. Polling ativo a cada 2.5 segundos no backend
         pixPollingInterval = setInterval(async () => {
             try {
                 const res = await fetch(`${API_BASE_URL}/check_payment/${paymentId}`);
@@ -881,10 +955,10 @@ const pedidoApp = (function () {
 
         if (summaryEl && orderSummary) {
             summaryEl.innerHTML = `
-                <div style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Pedido:</strong> #${String(paymentId).slice(-6)}</div>
-                <div style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Cliente:</strong> ${orderSummary.clientName}</div>
-                <div style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Total Pago:</strong> R$ ${orderSummary.total.toFixed(2).replace('.', ',')}</div>
-                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;">Status: <span style="color: #10b981; font-weight: 700;">✅ Pago via PIX & Enviado ao PDV</span></div>
+                <div style="font-size: 1rem; margin-bottom: 8px;"><strong>Pedido:</strong> #${String(paymentId).slice(-6)}</div>
+                <div style="font-size: 1rem; margin-bottom: 8px;"><strong>Cliente:</strong> ${orderSummary.clientName}</div>
+                <div style="font-size: 1rem; margin-bottom: 8px;"><strong>Total Pago:</strong> R$ ${orderSummary.total.toFixed(2).replace('.', ',')}</div>
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);">Status: <span style="color: #10b981; font-weight: 800;">✅ Pago & Enviado à Cozinha</span></div>
             `;
         }
     }
@@ -893,15 +967,16 @@ const pedidoApp = (function () {
     let selectedPaymentMethodKey = null;
 
     function selectPaymentMethod(method) {
-        selectedPaymentMethodKey = method;
-
         const name = document.getElementById('client-name').value.trim();
         const lastname = document.getElementById('client-lastname').value.trim();
         const phone = document.getElementById('client-phone').value.trim();
+        
         if (!name || !lastname || !phone) {
-            alert('Por favor, preencha Nome, Sobrenome e Telefone antes de selecionar o pagamento.');
+            alert('Por favor, preencha Nome, Sobrenome e WhatsApp antes de selecionar a forma de pagamento.');
             return;
         }
+
+        selectedPaymentMethodKey = method;
 
         // Destaca o botão ativo
         document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
@@ -909,20 +984,22 @@ const pedidoApp = (function () {
         const btnEl = document.getElementById(btnMap[method]);
         if (btnEl) btnEl.classList.add('active');
 
-        // Esconde seletor
-        document.getElementById('payment-method-selector').style.display = 'none';
-
         if (method === 'bankTransfer') {
-            // PIX: mostra painel de confirmação direto — sem Brick
+            // PIX: mostra painel de confirmação direto
             document.getElementById('wallet_container').style.display = 'none';
+            document.getElementById('wallet_container').innerHTML = '';
             document.getElementById('pix-action-container').style.display = 'block';
+            if (paymentBrickController) {
+                try { paymentBrickController.unmount(); } catch(e) {}
+                paymentBrickController = null;
+            }
         } else {
-            // Cartão: usa Brick do MP
+            // Cartão de Crédito ou Débito: usa o Card Payment Brick universal
             document.getElementById('pix-action-container').style.display = 'none';
             const container = document.getElementById('wallet_container');
             container.style.display = 'block';
-            container.innerHTML = '';
-            initMercadoPagoBrick(method);
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.9rem;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando formulário seguro do cartão...</div>';
+            initCardPaymentBrick(method);
         }
     }
 
@@ -931,45 +1008,60 @@ const pedidoApp = (function () {
         ? 'https://pdv-sdzo.onrender.com' 
         : '';
 
-    // --- Mercado Pago Bricks ---
+    // --- Mercado Pago Card Payment Brick (Universal para Crédito e Débito) ---
     let paymentBrickController = null;
 
-    async function initMercadoPagoBrick(paymentMethodFilter) {
+    async function initCardPaymentBrick(paymentMethodFilter) {
         if (!mp) {
-            console.warn('MP não inicializado — botão manual ativo.');
-            document.getElementById('btn-pay').style.display = '';
+            console.warn('MP não inicializado — fallback manual ativo.');
+            const payBtn = document.getElementById('btn-pay');
+            if (payBtn) payBtn.style.display = 'block';
             return;
         }
 
         if (paymentBrickController) {
             try { paymentBrickController.unmount(); } catch(e) {}
+            paymentBrickController = null;
         }
 
         const { total } = getCartTotal();
+        const container = document.getElementById('wallet_container');
+        if (container) container.innerHTML = '';
 
-        const filteredMethods = {};
-        if (paymentMethodFilter === 'creditCard') filteredMethods.creditCard = 'all';
-        else if (paymentMethodFilter === 'debitCard') filteredMethods.debitCard = 'all';
-        else if (paymentMethodFilter === 'bankTransfer') filteredMethods.bankTransfer = 'all';
-        else {
-            filteredMethods.creditCard = 'all';
-            filteredMethods.debitCard = 'all';
-            filteredMethods.bankTransfer = 'all';
-            filteredMethods.ticket = 'all';
-            filteredMethods.mercadoPago = 'all';
-        }
         try {
             const bricksBuilder = mp.bricks();
-            paymentBrickController = await bricksBuilder.create('payment', 'wallet_container', {
-                initialization: { amount: total },
-                customization: { paymentMethods: filteredMethods },
+            
+            // Configuração do Card Payment Brick:
+            // Para Débito: maxInstallments = 1 (à vista em qualquer bandeira)
+            // Para Crédito: maxInstallments = 12 (parcelamento)
+            const isDebit = paymentMethodFilter === 'debitCard';
+
+            const settings = {
+                initialization: {
+                    amount: total,
+                },
+                customization: {
+                    paymentMethods: {
+                        maxInstallments: isDebit ? 1 : 12,
+                    },
+                    visual: {
+                        style: {
+                            theme: 'dark',
+                            customVariables: {
+                                formBackgroundColor: '#151c2e',
+                                baseColor: '#f59e0b',
+                            }
+                        }
+                    }
+                },
                 callbacks: {
                     onReady: () => {
-                        console.log('Brick de pagamento carregado.');
-                        document.getElementById('btn-pay').style.display = 'none';
+                        console.log(`Card Payment Brick pronto (${isDebit ? 'Débito' : 'Crédito'}).`);
+                        const payBtn = document.getElementById('btn-pay');
+                        if (payBtn) payBtn.style.display = 'none';
                     },
 
-                    onSubmit: async ({ selectedPaymentMethod, formData }) => {
+                    onSubmit: async (cardFormData) => {
                         const name = document.getElementById('client-name').value.trim();
                         const lastname = document.getElementById('client-lastname').value.trim();
                         const phone = document.getElementById('client-phone').value.trim();
@@ -993,7 +1085,7 @@ const pedidoApp = (function () {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                    paymentData: formData,
+                                    paymentData: cardFormData,
                                     cart,
                                     clientData: { fullName: `${name} ${lastname}`, phone },
                                     totalAmount: getCartTotal().total
@@ -1010,7 +1102,7 @@ const pedidoApp = (function () {
                                     clientPhone: phone,
                                     observation: obs,
                                     paymentStatus: data.status,
-                                    selectedMethod: selectedPaymentMethodKey || paymentMethodFilter || 'online'
+                                    selectedMethod: selectedPaymentMethodKey || (isDebit ? 'debitCard' : 'creditCard')
                                 });
 
                                 alert(`✅ Pagamento Aprovado!\nObrigado ${name}, seu pedido foi enviado ao PDV.`);
@@ -1030,17 +1122,21 @@ const pedidoApp = (function () {
                         }
                     },
                     onError: (error) => {
-                        console.error('Erro no Brick:', error);
+                        console.error('Erro no Card Payment Brick:', error);
                     }
                 }
-            });
+            };
+
+            paymentBrickController = await bricksBuilder.create('cardPayment', 'wallet_container', settings);
+
         } catch (e) {
-            console.error('Erro ao iniciar MP Brick:', e);
-            document.getElementById('btn-pay').style.display = '';
+            console.error('Erro ao iniciar Card Payment Brick:', e);
+            const payBtn = document.getElementById('btn-pay');
+            if (payBtn) payBtn.style.display = 'block';
         }
     }
 
-    // --- Fluxo PIX Direto (sem Payment Brick) ---
+    // --- Fluxo PIX Direto ---
     async function processPixPayment() {
         const name = document.getElementById('client-name').value.trim();
         const lastname = document.getElementById('client-lastname').value.trim();
@@ -1048,7 +1144,7 @@ const pedidoApp = (function () {
         const obs = document.getElementById('client-obs').value.trim();
 
         if (!name || !lastname || !phone) {
-            alert('Por favor, preencha Nome, Sobrenome e Telefone antes de gerar o PIX.');
+            alert('Por favor, preencha Nome, Sobrenome e WhatsApp antes de gerar o PIX.');
             return;
         }
 
@@ -1095,7 +1191,7 @@ const pedidoApp = (function () {
                 return;
             }
 
-            // 1. Salva o pedido inicial no Supabase (status 'waiting_payment') com o ID do pagamento
+            // 1. Salva o pedido no Supabase
             await saveWebOrder({
                 id: String(data.payment_id),
                 clientName: `${name} ${lastname}`,
@@ -1105,13 +1201,13 @@ const pedidoApp = (function () {
                 selectedMethod: 'bankTransfer'
             });
 
-            // 2. Oculta o form e exibe a tela PIX
+            // 2. Transiciona para a tela PIX
             const formWrapper = document.getElementById('checkout-form-wrapper');
             if (formWrapper) formWrapper.style.display = 'none';
             const pixScreen = document.getElementById('pix-container');
             if (pixScreen) pixScreen.style.display = 'flex';
 
-            // 3. Preenche o QR Code gerado
+            // 3. Preenche QR Code e Copia e Cola
             const qrImg = document.getElementById('pix-qr-img');
             if (qrImg) {
                 qrImg.src = data.qr_code_base64 || '';
@@ -1121,13 +1217,12 @@ const pedidoApp = (function () {
             const copiaCola = document.getElementById('pix-copia-cola');
             if (copiaCola) copiaCola.value = data.qr_code || '';
 
-            // 4. Inicia escuta e verificação em tempo real do pagamento
+            // 4. Inicia escuta em tempo real
             startCheckingPixStatus(String(data.payment_id), {
                 clientName: `${name} ${lastname}`,
                 total: currentTotal
             });
 
-            // Limpa o carrinho
             cart = [];
             updateCartUI();
 
@@ -1139,7 +1234,7 @@ const pedidoApp = (function () {
         }
     }
 
-    // --- Fallback manual (caso Brick não carregue / MP key inválida) ---
+    // --- Fallback manual ---
     async function processCheckout(event) {
         event.preventDefault();
 
@@ -1154,8 +1249,10 @@ const pedidoApp = (function () {
         }
 
         const btn = document.getElementById('btn-pay');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+        }
 
         let deductedItems = [];
         try {
@@ -1177,12 +1274,14 @@ const pedidoApp = (function () {
             await restoreStockAtomically(deductedItems);
             alert('Erro ao enviar pedido.\n\nDetalhes: ' + (e.message || e));
         } finally {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-credit-card"></i> Pagar e Enviar Pedido';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-credit-card"></i> Confirmar pedido';
+            }
         }
     }
 
-    // --- Init ---
+    // --- Inicialização ---
     window.addEventListener('DOMContentLoaded', () => {
         loadProducts();
     });
@@ -1203,6 +1302,8 @@ const pedidoApp = (function () {
         processCheckout,
         selectPaymentMethod,
         processPixPayment,
-        copyPixCode
+        copyPixCode,
+        filterSearch,
+        clearSearch
     };
 })();
