@@ -1,0 +1,20 @@
+{
+  "name": "pdv-backend",
+  "version": "1.0.0",
+  "description": "PDV Backend Server - Edu Espetinhos",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.50.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "mercadopago": "^2.6.2",
+    "qrcode": "^1.5.4",
+    "uuid": "^11.1.0"
+  }
+}

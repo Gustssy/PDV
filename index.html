@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Edu Espetinhos - Sistema PDV</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="app-container">
+
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="brand">
+                <i class="fa-solid fa-store brand-icon"></i>
+                <span class="brand-name">Edu <span class="highlight">Espetinhos</span></span>
+            </div>
+
+            <ul class="nav-links">
+                <li class="nav-item active" data-target="view-dashboard">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Início</span>
+                </li>
+                <li class="nav-item" data-target="view-pdv">
+                    <i class="fa-solid fa-cash-register"></i>
+                    <span>Caixa</span>
+                </li>
+                <li class="nav-item" data-target="view-comandas">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>Comandas</span>
+                </li>
+                <li class="nav-item" data-target="view-produtos">
+                    <i class="fa-solid fa-box-open"></i>
+                    <span>Produtos</span>
+                </li>
+                <li class="nav-item" data-target="view-historico">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Histórico</span>
+                </li>
+
+                <li class="nav-item" data-target="view-web-orders" id="nav-web-orders">
+                    <i class="fa-solid fa-globe"></i>
+                    <span>Pedidos Web</span>
+                    <span id="web-orders-badge" style="display:none;position:absolute;top:6px;right:6px;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:10px;min-width:18px;text-align:center;">0</span>
+                </li>
+
+                <li class="nav-item" data-target="view-config">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Configurações</span>
+                </li>
+            </ul>
+
+            <div class="user-profile">
+                <div class="avatar">
+                    <i class="fa-solid fa-user-tie"></i>
+                </div>
+                <div class="user-info">
+                    <span class="user-name">Admin</span>
+                    <span class="user-role">Gerente</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+
+            <!-- VIEW: DASHBOARD -->
+            <section id="view-dashboard" class="view active">
+                <div id="dash-feira-banner" style="display:none; background: var(--primary); color: white; padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px; text-align: center; font-size: 1.2rem; font-weight: bold; letter-spacing: 1px;">
+                    📍 Hoje estamos em: <span id="dash-feira-location"></span>
+                </div>
+                <header class="view-header" style="flex-wrap: wrap; gap: 15px;">
+                    <h2 style="display: flex; align-items: center; gap: 10px;">
+                        Dashboard & Relatórios
+                        <button id="toggle-visibility-btn" class="btn-icon" style="font-size: 1.2rem; color: var(--text-muted);" onclick="pdvApp.toggleValuesVisibility()" title="Ocultar/Mostrar Valores">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                        <button class="btn-refresh-data" onclick="pdvApp.refreshData()" title="Atualizar dados do banco" style="background: rgba(59,130,246,0.15); border: 1px solid #3b82f6; color: #3b82f6; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 6px; margin-left: 10px;">
+                            <i class="fa-solid fa-arrows-rotate" id="refresh-icon"></i> Atualizar
+                        </button>
+                    </h2>
+                    <div class="dashboard-filters" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,0.1); padding: 10px; border-radius: var(--radius-md);">
+                        <select id="dash-filter-location" class="input-field" style="padding: 5px; font-size: 0.9rem; min-width: 150px;" onchange="pdvApp.renderDashboard()">
+                            <option value="">Todas as Feiras</option>
+                            <option value="Itahyê">Itahyê</option>
+                            <option value="São Francisco">São Francisco</option>
+                            <option value="Sítio Anhanguera">Sítio Anhanguera</option>
+                        </select>
+                        <select id="dash-filter-preset" class="input-field" style="padding: 5px; font-size: 0.9rem; min-width: 150px;" onchange="pdvApp.applyDatePreset(this.value)">
+                            <option value="today">Hoje</option>
+                            <option value="yesterday">Ontem</option>
+                            <option value="7days">Últimos 7 dias</option>
+                            <option value="30days">Últimos 30 dias</option>
+                            <option value="thisMonth">Este mês</option>
+                            <option value="lastMonth">Mês anterior</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                        <div id="dash-custom-dates" style="display: none; align-items: center; gap: 5px;">
+                            <input type="date" id="dash-date-start" class="input-field" style="padding: 5px; font-size: 0.9rem;">
+                            <span style="color: var(--text-muted);">até</span>
+                            <input type="date" id="dash-date-end" class="input-field" style="padding: 5px; font-size: 0.9rem;">
+                        </div>
+                        <button class="btn primary" onclick="pdvApp.renderDashboard()" style="padding: 6px 12px; font-size: 0.9rem;"><i class="fa-solid fa-filter"></i> Filtrar</button>
+                    </div>
+                </header>
+                
+                <div class="dashboard-metrics">
+                    <div class="metric-card glass">
+                        <div class="metric-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+                        <div class="metric-info">
+                            <h3>Vendas do Dia</h3>
+                            <p id="dash-vendas-dia">R$ 0,00</p>
+                        </div>
+                    </div>
+                    <div class="metric-card glass">
+                        <div class="metric-icon"><i class="fa-solid fa-receipt"></i></div>
+                        <div class="metric-info">
+                            <h3>Ticket Médio</h3>
+                            <p id="dash-ticket-medio">R$ 0,00</p>
+                        </div>
+                    </div>
+                    <div class="metric-card glass" style="border: 1px solid var(--danger);">
+                        <div class="metric-icon"><i class="fa-solid fa-ban" style="color:var(--danger);"></i></div>
+                        <div class="metric-info">
+                            <h3 style="color:var(--danger);">Cancelamentos</h3>
+                            <p id="dash-cancelado" style="color:var(--danger);">R$ 0,00</p>
+                        </div>
+                    </div>
+                    <div class="metric-card glass" style="border: 1px solid var(--warning);">
+                        <div class="metric-icon"><i class="fa-solid fa-cookie-bite" style="color:var(--warning);"></i></div>
+                        <div class="metric-info">
+                            <h3 style="color:var(--warning);">Consumo da Barraca</h3>
+                            <p id="dash-consumo-interno" style="color:var(--warning);">R$ 0,00</p>
+                        </div>
+                    </div>
+                    <div class="metric-card glass" style="border: 1px solid #a78bfa;">
+                        <div class="metric-icon"><i class="fa-solid fa-clock-rotate-left" style="color:#a78bfa;"></i></div>
+                        <div class="metric-info">
+                            <h3 style="color:#a78bfa;">Pendências</h3>
+                            <p id="dash-pendencias" style="color:#a78bfa;">R$ 0,00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-charts">
+                    <div class="chart-card glass">
+                        <h3><i class="fa-solid fa-arrow-trend-up" style="color: var(--success);"></i> Mais Vendidos</h3>
+                        <ul class="top-items-list" id="dash-top-items">
+                            <!-- Preenchido via JS -->
+                            <li style="color: var(--text-muted); text-align: center; padding: 1rem;">Nenhuma venda registrada hoje.</li>
+                        </ul>
+                    </div>
+                    <div class="chart-card glass">
+                        <h3><i class="fa-solid fa-arrow-trend-down" style="color: var(--danger);"></i> Menos Vendidos</h3>
+                        <ul class="top-items-list" id="dash-bottom-items">
+                            <!-- Preenchido via JS -->
+                            <li style="color: var(--text-muted); text-align: center; padding: 1rem;">Nenhuma venda registrada hoje.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Alerta de Nível de Insumos (Estoque Crítico) -->
+
+
+                <div class="abc-curve-section glass" style="margin-top: 1.5rem; padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+                    <h3 style="margin: 0 0 1rem; font-size: 1.2rem; display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-layer-group" style="color: var(--warning);"></i> Curva ABC de Produtos
+                    </h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Classificação baseada na receita gerada no período. <strong>A:</strong> Top 80% | <strong>B:</strong> Próximos 15% | <strong>C:</strong> Últimos 5%</p>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Qtd. Vendida</th>
+                                    <th>Receita Gerada</th>
+                                    <th>% Acumulado</th>
+                                    <th>Curva</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-abc-tbody">
+                                <!-- Preenchido via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: CAIXA (PDV) -->
+            <section id="view-pdv" class="view">
+                <header class="view-header" style="flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <h2>Ponto de Venda</h2>
+                        <div class="pdv-indicators" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <span class="badge indicator-btn" onclick="pdvApp.openPagersPanel('free')" style="background: rgba(16,185,129,0.2); color: var(--success); padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.2s;"><i class="fa-solid fa-pager"></i> <span id="ind-livres">16</span> Livres</span>
+                            <span class="badge indicator-btn" onclick="pdvApp.openPagersPanel('occupied')" style="background: rgba(239,68,68,0.2); color: var(--danger); padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.2s;"><i class="fa-solid fa-bell"></i> <span id="ind-ocupados">0</span> Ocupados</span>
+                            <span class="badge indicator-btn" onclick="pdvApp.openPagersPanel('delayed')" style="background: rgba(245,158,11,0.2); color: var(--warning, #f59e0b); padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.2s;"><i class="fa-solid fa-clock"></i> <span id="ind-atraso">0</span> Atrasadas</span>
+                            <span class="badge indicator-btn" onclick="pdvApp.openPagersPanel('fiado')" style="background: rgba(139,92,246,0.2); color: #a78bfa; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.2s;"><i class="fa-solid fa-book"></i> <span id="ind-fiado">0</span> Fiados</span>
+                            <span class="badge indicator-btn" onclick="pdvApp.openPagersPanel('feirantes')" style="background: rgba(59,130,246,0.2); color: #3b82f6; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.2s;"><i class="fa-solid fa-users"></i> <span id="ind-feirantes">0</span> Feirantes</span>
+                            <span id="ind-insumos-alert" class="badge indicator-btn" onclick="pdvApp.openPDVInsumosModal()" style="background: rgba(245,158,11,0.2); color: var(--warning, #f59e0b); padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: 0.2s; display: none; align-items: center; gap: 6px;"><i class="fa-solid fa-triangle-exclamation"></i> <span id="ind-insumos-count">0</span> Alertas Insumos</span>
+                        </div>
+                    </div>
+                    <div class="date-time" id="current-time">12:00 PM</div>
+                </header>
+
+                <div class="pdv-layout">
+                    <!-- Esquerda: Produtos -->
+                    <div class="pdv-products panel glass">
+                        <div class="search-bar">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text" id="pdv-search" placeholder="Buscar produto ou código...">
+                        </div>
+                        <div class="category-filters" id="pdv-categories">
+                            <!-- Categorias dinâmicas -->
+                            <button class="cat-btn active" data-cat="all">Todos</button>
+                        </div>
+                        <div class="product-grid" id="pdv-product-grid">
+                            <!-- Produtos renderizados aqui via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Direita: Carrinho -->
+                    <div class="pdv-cart panel glass">
+                        <div class="cart-header">
+                            <h3>Carrinho Atual</h3>
+                            <button class="btn-icon danger" onclick="pdvApp.clearCart()" title="Limpar Carrinho">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+
+                        <div class="cart-items" id="cart-items-container">
+                            <!-- Itens do carrinho -->
+                            <div class="empty-cart-msg">
+                                <i class="fa-solid fa-cart-arrow-down"></i>
+                                <p>O carrinho está vazio</p>
+                            </div>
+                        </div>
+
+                        <div class="cart-footer">
+                            <div class="cart-summary">
+                                <div class="summary-row">
+                                    <span>Subtotal</span>
+                                    <span id="cart-subtotal">R$ 0,00</span>
+                                </div>
+                                <div class="summary-row total">
+                                    <span>Total</span>
+                                    <span id="cart-total" class="highlight-text">R$ 0,00</span>
+                                </div>
+                            </div>
+                            <div class="cart-actions">
+                                <button class="btn success btn-large btn-block" id="btn-open-checkout" onclick="pdvApp.openCheckoutModal()" style="width: 100%;">
+                                    Ir para Pagamento <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Side Panel Comandas (Oculto por padrão) -->
+            <div id="side-panel-comandas" class="side-panel glass">
+                <div class="side-panel-header">
+                    <h3 id="side-panel-title">Pagers Ativos</h3>
+                    <button class="btn-close" onclick="pdvApp.closePagersPanel()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="side-panel-body">
+                    <div id="side-comandas-list" class="side-comandas-list">
+                        <!-- Lista de pagers ativos renderizada via JS -->
+                    </div>
+                    <div id="side-comandas-detail" class="side-comandas-detail" style="display: none;">
+                        <!-- Detalhes do pager selecionado -->
+                        <div class="detail-header">
+                            <button class="btn-icon" onclick="pdvApp.backToComandasList()"><i class="fa-solid fa-arrow-left"></i></button>
+                            <h4 id="detail-pager-id">Pager 01</h4>
+                            <span id="detail-pager-status" class="badge">Aberto</span>
+                        </div>
+                        <div class="detail-info">
+                            <p><strong>Cliente:</strong> <span id="detail-client-name"></span></p>
+                            <p><strong>Tempo:</strong> <span id="detail-time-opened"></span></p>
+                            <p><strong>Total:</strong> <span id="detail-total-value" class="highlight-text">R$ 0,00</span></p>
+                        </div>
+                        <div class="detail-items" id="detail-items-list">
+                            <!-- Items da comanda -->
+                        </div>
+                        <div class="detail-actions">
+                            <button class="btn success" id="btn-cobrar-comanda" onclick="pdvApp.chargeSelectedComanda()"><i class="fa-solid fa-hand-holding-dollar"></i> Cobrar</button>
+                            <button class="btn primary" id="btn-baixa-comanda" onclick="pdvApp.closeSelectedComanda()"><i class="fa-solid fa-check-double"></i> Dar Baixa</button>
+                            <button class="btn secondary" id="btn-imprimir-comanda" onclick="pdvApp.printSelectedComanda()"><i class="fa-solid fa-print"></i> Imprimir</button>
+                            <button class="btn danger" id="btn-cancelar-comanda" onclick="pdvApp.cancelSelectedComanda()"><i class="fa-solid fa-ban"></i> Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- VIEW: COMANDAS -->
+            <section id="view-comandas" class="view">
+                <header class="view-header">
+                    <h2>Gerenciador de Pagers (1 a 16)</h2>
+                </header>
+                <div class="comandas-grid" id="comandas-container">
+                    <!-- Comandas renderizadas via JS -->
+                </div>
+            </section>
+
+            <!-- VIEW: PRODUTOS -->
+            <section id="view-produtos" class="view">
+                <header class="view-header">
+                    <h2>Estoque & Produtos</h2>
+                    <button class="btn primary" onclick="pdvApp.openProductModal()">
+                        <i class="fa-solid fa-plus"></i> Novo Produto
+                    </button>
+                </header>
+
+                <!-- Product Filters -->
+                <div class="filter-bar glass" style="display: flex; gap: 10px; margin-bottom: 20px; padding: 15px; border-radius: 8px; flex-wrap: wrap;">
+                    <div class="input-group" style="flex: 1; min-width: 200px;">
+                        <input type="text" id="prod-filter-search" placeholder="Buscar por código ou nome..." onkeyup="pdvApp.renderProductsTable()" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: var(--text-color);">
+                    </div>
+                    <div class="input-group" style="width: auto;">
+                        <select id="prod-filter-category" onchange="pdvApp.renderProductsTable()" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: var(--text-color);">
+                            <option value="" style="color: black;">Todas as Categorias</option>
+                        </select>
+                    </div>
+                    <div class="input-group" style="width: auto;">
+                        <select id="prod-filter-sort" onchange="pdvApp.renderProductsTable()" style="padding: 8px; border-radius: 4px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: var(--text-color);">
+                            <option value="best_sellers" style="color: black;" selected>Mais Vendidos (Padrão)</option>
+                            <option value="name_asc" style="color: black;">Nome (A-Z)</option>
+                            <option value="name_desc" style="color: black;">Nome (Z-A)</option>
+                            <option value="price_asc" style="color: black;">Menor Preço</option>
+                            <option value="price_desc" style="color: black;">Maior Preço</option>
+                            <option value="stock_asc" style="color: black;">Menor Estoque</option>
+                            <option value="stock_desc" style="color: black;">Maior Estoque</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container glass">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Cód</th>
+                                <th>Nome</th>
+                                <th>Categoria</th>
+                                <th>Preço</th>
+                                <th>Estoque</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="products-table-body">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+
+            <!-- VIEW: HISTÓRICO DE VENDAS -->
+            <section id="view-historico" class="view">
+                <header class="view-header" style="flex-direction: column; align-items: flex-start; gap: 15px;">
+                    <h2>Histórico de Vendas</h2>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%; background: rgba(0,0,0,0.1); padding: 15px; border-radius: var(--radius-md);">
+                        
+                        <div style="display: flex; align-items: center; gap: 10px; flex: 1 1 250px;">
+                            <input type="date" id="hist-date-start" class="input-field" style="padding: 10px; font-size: 1rem; width: 100%; cursor: pointer;" onclick="if(this.showPicker) this.showPicker();">
+                            <span style="color: var(--text-muted); font-weight: bold;">até</span>
+                            <input type="date" id="hist-date-end" class="input-field" style="padding: 10px; font-size: 1rem; width: 100%; cursor: pointer;" onclick="if(this.showPicker) this.showPicker();">
+                        </div>
+                        
+                        <select id="hist-payment-method" class="input-field" style="padding: 10px; font-size: 1rem; flex: 1 1 150px;">
+                            <option value="">Todas Formas de Pgto</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Cartão de Débito">Cartão de Débito</option>
+                            <option value="PIX">PIX</option>
+                            <option value="Fiado">Fiado</option>
+                        </select>
+                        
+                        <select id="hist-sale-type" class="input-field" style="padding: 10px; font-size: 1rem; flex: 1 1 150px;">
+                            <option value="venda">Vendas Válidas</option>
+                            <option value="cancelamento">Cancelamentos</option>
+                            <option value="">Todos os Registros</option>
+                        </select>
+
+                        <button class="btn primary" onclick="pdvApp.renderSalesHistory()" style="padding: 10px 20px; flex: 1 1 120px; font-size: 1rem;"><i class="fa-solid fa-filter"></i> Filtrar</button>
+                    </div>
+                </header>
+
+                <div class="table-container" style="margin-top: 20px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Data / Hora</th>
+                                <th>Comanda / Cliente</th>
+                                <th>Local</th>
+                                <th>Pagamento</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th style="text-align: right;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hist-table-body">
+                            <!-- Filled dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- VIEW: PEDIDOS WEB -->
+            <section id="view-web-orders" class="view">
+                <header class="view-header">
+                    <h2><i class="fa-solid fa-globe" style="color:var(--primary);margin-right:8px;"></i>Pedidos Web</h2>
+                    <button class="btn primary" onclick="pdvApp.loadWebOrders()">
+                        <i class="fa-solid fa-arrows-rotate"></i> Atualizar
+                    </button>
+                </header>
+
+                <!-- Filtros de status -->
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+                    <button class="btn" id="filter-wo-all" onclick="pdvApp.filterWebOrders('all')" style="background:var(--primary);color:#000;">Todos</button>
+                    <button class="btn" id="filter-wo-pending" onclick="pdvApp.filterWebOrders('pending')">Pendentes</button>
+                    <button class="btn" id="filter-wo-preparing" onclick="pdvApp.filterWebOrders('preparing')">Preparando</button>
+                    <button class="btn" id="filter-wo-ready" onclick="pdvApp.filterWebOrders('ready')">Prontos</button>
+                    <button class="btn" id="filter-wo-done" onclick="pdvApp.filterWebOrders('done')">Entregues</button>
+                </div>
+
+                <div id="web-orders-list" style="display:flex;flex-direction:column;gap:16px;">
+                    <div style="text-align:center;color:var(--text-muted);padding:40px;">
+                        <i class="fa-solid fa-inbox" style="font-size:2rem;margin-bottom:10px;display:block;"></i>
+                        Nenhum pedido web encontrado.
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: CONFIGURAÇÕES -->
+            <section id="view-config" class="view">
+                <header class="view-header">
+                    <h2>Configurações do PDV</h2>
+                    <button class="btn primary" onclick="pdvApp.syncFullDatabase()">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Sincronizar Nuvem (Enviar/Receber)
+                    </button>
+                </header>
+                <div class="panel glass" style="max-width: 600px; padding: 20px; margin-bottom: 20px;">
+                    <h3><i class="fa-solid fa-shield-halved" style="color: var(--success);"></i> Backup de Dados Local</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+                        Como o sistema está offline, use essas opções para transferir os dados do tablet para o notebook sem perder as vendas.
+                    </p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn secondary" onclick="pdvApp.exportData()">
+                            <i class="fa-solid fa-download"></i> Salvar Arquivo de Backup
+                        </button>
+                        <button class="btn primary" onclick="document.getElementById('import-file').click()">
+                            <i class="fa-solid fa-upload"></i> Restaurar Arquivo
+                        </button>
+                        <input type="file" id="import-file" style="display: none;" accept=".json" onchange="pdvApp.importData(event)">
+                    </div>
+                </div>
+
+                <div class="panel glass" style="max-width: 600px; padding: 20px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                        <h3>📍 Controle da Feira do Dia</h3>
+                        <span id="feira-status-badge" style="background: var(--danger); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;">Fechada</span>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+                        Abra o caixa para iniciar as vendas. O relatório final será consolidado com base nesses dados.
+                    </p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Local da Feira *</label>
+                            <select id="config-feira-location" class="input-field" required>
+                                <option value="">Selecione...</option>
+                                <option value="Itahyê">Itahyê</option>
+                                <option value="São Francisco">São Francisco</option>
+                                <option value="Sítio Anhanguera">Sítio Anhanguera</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Data</label>
+                            <input type="date" id="config-feira-date" class="input-field" readonly style="background: rgba(0,0,0,0.2); cursor: not-allowed;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Caixa Inicial (Troco) * (R$)</label>
+                        <input type="number" step="0.01" id="config-feira-caixa" class="input-field" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Observações</label>
+                        <textarea id="config-feira-obs" class="input-field" rows="2" placeholder="Opcional"></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 10px; background: rgba(0,0,0,0.1); border-radius: 8px; text-align: center;">
+                        <button class="btn success" id="btn-abrir-feira" onclick="pdvApp.abrirFeira()" style="width: 100%; margin-bottom: 10px;"><i class="fa-solid fa-lock-open"></i> Abrir Caixa e Iniciar Feira</button>
+                        <button class="btn danger" id="btn-encerrar-feira" onclick="pdvApp.encerrarFeira()" style="width: 100%; display: none;"><i class="fa-solid fa-file-invoice"></i> Encerrar Feira e Gerar Relatório</button>
+                        <button class="btn secondary" id="btn-relatorio-parcial" onclick="pdvApp.imprimirRelatorioParcial()" style="width: 100%; margin-top: 10px; display: none;"><i class="fa-solid fa-print"></i> Imprimir Relatório Parcial</button>
+                    </div>
+                </div>
+
+                <div class="panel glass" style="max-width: 600px; padding: 20px;">
+                    <h3>Opções de Customização (Variações)</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+                        Configure as opções que aparecem quando você clica em um item "Customizável" no PDV. Separe as opções por vírgula.
+                    </p>
+                    
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label>Pontos da Carne</label>
+                        <input type="text" id="config-doneness" class="input-field" placeholder="Ex: Bem Passado, Ao Ponto, Mal Passado">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label>Ingredientes / Adicionais</label>
+                        <input type="text" id="config-ingredients" class="input-field" placeholder="Ex: Sem Salada, Sem Cebola, Completo">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Extras para Espetos</label>
+                        <input type="text" id="config-extras" class="input-field" placeholder="Ex: Fatiado, Com Farofa, Pão de Alho">
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Bottom Navigation for Mobile -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" data-target="view-dashboard">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Início</span>
+            </div>
+            <div class="nav-item" data-target="view-pdv">
+                <i class="fa-solid fa-cash-register"></i>
+                <span>PDV</span>
+            </div>
+            <div class="nav-item" data-target="view-comandas">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Comandas</span>
+            </div>
+            <div class="nav-item" data-target="view-produtos">
+                <i class="fa-solid fa-box-open"></i>
+                <span>Produtos</span>
+            </div>
+            <div class="nav-item" data-target="view-clientes">
+                <i class="fa-solid fa-users"></i>
+                <span>Clientes</span>
+            </div>
+            <div class="nav-item" data-target="view-config">
+                <i class="fa-solid fa-gear"></i>
+                <span>Configs</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- Checkout Modal -->
+    <div id="modal-checkout" class="modal-overlay">
+        <div class="modal glass" style="max-width: 800px; width: 95%;">
+            <div class="modal-header">
+                <h3>Finalizar Venda</h3>
+                <button class="btn-close" onclick="pdvApp.closeModal('modal-checkout')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body checkout-layout">
+                <div class="checkout-left">
+                    <div class="form-group">
+                        <label>Comanda (Pager) - Opcional</label>
+                        <input type="hidden" id="checkout-comanda" value="">
+                        <div class="pager-selection-grid" id="checkout-pager-grid" style="grid-template-columns: repeat(8, 1fr);">
+                            <!-- Preenchido via JS -->
+                        </div>
+                    </div>
+                    
+                    <div class="form-row" style="align-items: flex-end; margin-top: 5px;">
+                        <div style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Cliente (Opcional)</label>
+                                <input type="text" id="checkout-cliente" class="input-field" placeholder="Nome do cliente">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Desconto (R$)</label>
+                                <input type="number" id="checkout-discount" step="0.01" class="input-field" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+                            <label class="toggle-feirante-btn" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(59,130,246,0.1); padding: 11px; border-radius: var(--radius-md); border: 1px solid #3b82f6; cursor: pointer; transition: 0.2s; margin: 0;">
+                                <input type="checkbox" id="checkout-feirante" style="width: 1.2rem; height: 1.2rem; cursor: pointer; margin: 0;">
+                                <span style="font-weight: 600; color: #3b82f6;">Cliente Feirante</span>
+                            </label>
+                            
+                            <label class="toggle-viagem-btn" style="display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 11px; border-radius: var(--radius-md); border: 1px solid var(--border); cursor: pointer; transition: 0.2s; margin: 0;">
+                                <input type="checkbox" id="checkout-viagem" style="width: 1.2rem; height: 1.2rem; cursor: pointer; margin: 0;">
+                                <span style="font-weight: 600; font-size: 1rem; color: var(--text-main);">Pedido Viagem</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="checkout-right">
+                    <div class="checkout-total" style="margin-bottom: 0;">
+                        <span>Total a Pagar</span>
+                        <h2 id="checkout-total-value">R$ 0,00</h2>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 5px;">
+                        <label>Forma de Pagamento</label>
+                        <div class="payment-methods" style="grid-template-columns: repeat(2, 1fr); gap: 0.6rem;">
+                            <button class="payment-btn active" data-method="Dinheiro"><i class="fa-solid fa-money-bill-wave"></i> Dinheiro</button>
+                            <button class="payment-btn" data-method="PIX"><i class="fa-brands fa-pix"></i> PIX</button>
+                            <button class="payment-btn" data-method="Crédito"><i class="fa-regular fa-credit-card"></i> Crédito</button>
+                            <button class="payment-btn" data-method="Débito"><i class="fa-solid fa-credit-card"></i> Débito</button>
+                            <button class="payment-btn" data-method="Fiado" style="grid-column: span 2;"><i class="fa-solid fa-book"></i> Fiado (Conta)</button>
+                            <button class="payment-btn" data-method="Troca" id="btn-troca-payment" style="display: none; grid-column: span 2;"><i class="fa-solid fa-right-left"></i> Troca</button>
+                        </div>
+                    </div>
+                    <div class="form-group" id="money-change-group" style="margin-bottom: 0;">
+                        <label>Valor Recebido</label>
+                        <input type="number" id="checkout-received" step="0.01" class="input-field" placeholder="R$ 0.00">
+                        <div class="change-display" style="margin-top: 5px;">Troco: <span id="checkout-change">R$ 0,00</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; gap: 10px; width: 100%;">
+                    <button class="btn secondary" style="flex: 1;" onclick="pdvApp.closeModal('modal-checkout')">Cancelar</button>
+                    <button class="btn primary" style="flex: 1;" onclick="pdvApp.finishSale()">Confirmar Venda</button>
+                </div>
+                <button class="btn" style="width: 100%; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px dashed var(--border); padding: 10px;" onclick="pdvApp.finishConsumo()">
+                    <i class="fa-solid fa-cookie-bite"></i> Lançar como Consumo da Barraca
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Customize -->
+    <div id="modal-customize" class="modal-overlay">
+        <div class="modal glass" style="max-width: 400px; width: 95%;">
+            <div class="modal-header" style="padding: 1rem 1.25rem;">
+                <h3 style="font-size: 1.05rem;">Personalizar Item</h3>
+                <button class="btn-close" onclick="pdvApp.closeModal('modal-customize')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="max-height: 65dvh; min-height: 0;; overflow-y: auto; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 12px;">
+                <input type="hidden" id="customize-product-id">
+                
+                <div style="text-align: center;">
+                    <h2 id="customize-product-name" style="margin: 0; color: var(--primary); font-size: 1.2rem;">Nome</h2>
+                    <p id="customize-product-price" style="font-weight: bold; font-size: 1rem; color: var(--success); margin: 3px 0 0 0;">R$ 0,00</p>
+                </div>
+
+                <div id="customize-addons-container" style="background: rgba(0,0,0,0.15); padding: 10px 12px; border-radius: var(--radius-md); display: none;">
+                    <label style="margin-bottom: 8px; display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Adicionais</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                        <select id="customize-addon-select" style="flex: 1; padding: 8px; border-radius: var(--radius-md); background: rgba(0,0,0,0.2); border: 1px solid var(--border); color: var(--text-main); outline: none;">
+                        </select>
+                        <button type="button" class="btn primary" style="padding: 8px 12px;" onclick="pdvApp.addSelectedAddon()">Add</button>
+                    </div>
+                    <div id="customize-addons-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div id="customize-ingredients-container" style="display: none;">
+                    <label style="margin-bottom: 6px; display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Ingredientes</label>
+                    <div id="customize-variations-ingredients-list" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="margin-bottom: 6px; display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Ponto da Carne</label>
+                    <div id="customize-variations-doneness-list" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    </div>
+                </div>
+
+                <div id="customize-extras-container" style="display: none;">
+                    <label style="margin-bottom: 6px; display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Opções Extras</label>
+                    <div id="customize-variations-extras-list" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; flex-direction: column; gap: 15px; padding: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="font-weight: bold; font-size: 1.2rem;">Total: <span id="customize-total" style="color: var(--success);">R$ 0,00</span></div>
+                    <div style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: var(--radius-md);">
+                        <button class="btn secondary" style="padding: 2px 10px; font-size: 1.1rem; border-radius: 4px;" onclick="pdvApp.updateCustomizeQty(-1)">-</button>
+                        <span id="customize-qty" style="font-weight: bold; font-size: 1.1rem; width: 24px; text-align: center;">1</span>
+                        <button class="btn secondary" style="padding: 2px 10px; font-size: 1.1rem; border-radius: 4px;" onclick="pdvApp.updateCustomizeQty(1)">+</button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; width: 100%;">
+                    <button class="btn secondary" onclick="pdvApp.closeModal('modal-customize')" style="flex: 1;">Cancelar</button>
+                    <button class="btn primary" onclick="pdvApp.confirmCustomization()" style="flex: 1;">Adicionar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals (Produto, Cliente, Comanda) serão gerenciados via JS ou HTML para brevidade -->
+    <!-- Modal Pagamento Dashboard -->
+    <div id="modal-pagamento-dash" class="modal-overlay">
+        <div class="modal glass" style="max-width: 400px; width: 95%;">
+            <div class="modal-header">
+                <h3>Vendas por Pagamento</h3>
+                <button class="btn-close" onclick="pdvApp.closeModal('modal-pagamento-dash')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div id="dash-pagamento-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Preenchido via JS -->
+                </div>
+                <hr style="border: 0; border-top: 1px dashed var(--border); margin: 15px 0;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.2rem;">
+                    <span>Total</span>
+                    <span id="dash-pagamento-total" class="highlight-text">R$ 0,00</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" style="width: 100%;" onclick="pdvApp.closeModal('modal-pagamento-dash')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pendências Dashboard -->
+    <div id="modal-pendencias-dash" class="modal-overlay">
+        <div class="modal glass" style="max-width: 500px; width: 95%;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-clock-rotate-left" style="color:#a78bfa;"></i> Pendências (Fiado)</h3>
+                <button class="btn-close" onclick="pdvApp.closeModal('modal-pendencias-dash')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem; max-height: 60vh; overflow-y: auto;">
+                <div id="dash-pendencias-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Preenchido via JS -->
+                </div>
+                <hr style="border: 0; border-top: 1px dashed var(--border); margin: 15px 0;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.2rem;">
+                    <span>Total Pendente</span>
+                    <span id="dash-pendencias-total" style="color: #a78bfa;">R$ 0,00</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" style="width: 100%;" onclick="pdvApp.closeModal('modal-pendencias-dash')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Consumo Dashboard -->
+    <div id="modal-consumo-dash" class="modal-overlay" onclick="if(event.target === this) pdvApp.closeModal('modal-consumo-dash')">
+        <div class="modal glass" style="max-width: 500px; width: 95%;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-cookie-bite" style="color:var(--warning);"></i> Consumo da Barraca</h3>
+                <button class="btn-close" onclick="pdvApp.closeModal('modal-consumo-dash')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem; max-height: 60vh; overflow-y: auto;">
+                <div id="dash-consumo-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Preenchido via JS -->
+                </div>
+                <hr style="border: 0; border-top: 1px dashed var(--border); margin: 15px 0;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.2rem;">
+                    <span>Total Consumido</span>
+                    <span id="dash-consumo-total" style="color: var(--warning);">R$ 0,00</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" style="width: 100%;" onclick="pdvApp.closeModal('modal-consumo-dash')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Gerenciar Categorias -->
+    <div id="modal-categorias" class="modal-overlay" onclick="if(event.target === this) pdvApp.closeModal('modal-categorias')">
+        <div class="modal glass" style="max-width: 450px; width: 95%;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-tags" style="color: var(--primary);"></i> Gerenciar Categorias</h3>
+                <button class="btn-close" onclick="pdvApp.closeModal('modal-categorias')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Categorias inativadas não aparecerão na tela de Caixa (PDV) e seus produtos ficarão ocultos para venda.
+                </p>
+                <div id="category-management-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" style="width: 100%;" onclick="pdvApp.closeModal('modal-categorias')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Alertas de Insumos (Caixa) -->
+    <div id="modal-pdv-insumos-alert" class="modal-overlay" onclick="if(event.target === this) pdvApp.closeModal('modal-pdv-insumos-alert')">
+        <div class="modal glass" style="max-width: 520px; width: 95%;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i> Alertas de Estoque de Insumos</h3>
+                <button class="btn-close" onclick="pdvApp.closeModal('modal-pdv-insumos-alert')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem; max-height: 60vh; overflow-y: auto;">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Insumos em nível de atenção (50%, 25%, ≤10un ou Esgotado):
+                </p>
+                <div id="pdv-insumos-modal-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" style="width: 100%;" onclick="pdvApp.closeModal('modal-pdv-insumos-alert')">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal Produto -->
+    <div id="modal-produto" class="modal-overlay">
+        <div class="modal glass">
+            <div class="modal-header">
+                <h3 id="modal-produto-title">Novo Produto</h3>
+                <button class="btn-close" onclick="pdvApp.closeModal('modal-produto')"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-produto">
+                    <input type="hidden" id="prod-id">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Código/SKU</label>
+                            <input type="text" id="prod-codigo" class="input-field" readonly style="background: rgba(0,0,0,0.2); cursor: not-allowed;" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Categoria</label>
+                            <select id="prod-cat" class="input-field" required>
+                                <option value="" disabled selected>Selecione uma categoria...</option>
+                                <option value="Espetos">Espetos</option>
+                                <option value="Lanches">Lanches</option>
+                                <option value="Bebidas">Bebidas</option>
+                                <option value="Insumos">Insumos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Nome do Produto</label>
+                        <input type="text" id="prod-nome" class="input-field" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Preço (R$)</label>
+                            <input type="number" step="0.01" id="prod-preco" class="input-field" required>
+                        </div>
+                        <div class="form-group" id="group-estoque">
+                            <label>Quantidade em Estoque</label>
+                            <input type="number" id="prod-estoque" class="input-field" required>
+                        </div>
+                    </div>
+                    <!-- Opções especiais -->
+                    <div
+                        style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.1); border-radius: var(--radius-md);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="prod-is-raw"
+                                style="width: 1.2rem; height: 1.2rem; cursor: pointer;"
+                                onchange="pdvApp.toggleRawMaterial()">
+                            <label for="prod-is-raw" style="margin-bottom: 0; cursor: pointer;">É apenas um insumo (não
+                                aparece no cardápio)</label>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="prod-is-composed"
+                                style="width: 1.2rem; height: 1.2rem; cursor: pointer;"
+                                onchange="pdvApp.toggleComposition()">
+                            <label for="prod-is-composed" style="margin-bottom: 0; cursor: pointer;">Produto composto
+                                (usa insumos)</label>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="prod-is-customizable"
+                                style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                            <label for="prod-is-customizable" style="margin-bottom: 0; cursor: pointer;">Permite personalização (adicionais e observações)</label>
+                        </div>
+                    </div>
+
+                    <div id="composition-section"
+                        style="display: none; background: rgba(0,0,0,0.1); padding: 15px; border-radius: var(--radius-md); margin-top: 10px;">
+                        <h4 style="margin-bottom: 10px; font-size: 0.9rem;">Adicionar Insumos (Ficha Técnica)</h4>
+                        <div class="form-row" style="margin-bottom: 10px; display: flex; gap: 10px;">
+                            <select id="comp-product-select" class="input-field" style="flex: 1;">
+                                <!-- Preenchido dinamicamente -->
+                            </select>
+                            <div style="display:flex; gap:10px; width: 140px;">
+                                <input type="number" id="comp-qty" class="input-field" placeholder="Qtd" value="1"
+                                    min="1" style="width: 70px; padding: 0.5rem;">
+                                <button type="button" class="btn primary" onclick="pdvApp.addCompositionItem()"
+                                    style="padding: 0.5rem;">Add</button>
+                            </div>
+                        </div>
+                        <ul id="composition-list"
+                            style="list-style: none; display: flex; flex-direction: column; gap: 5px;">
+                            <!-- Items here -->
+                        </ul>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="pdvApp.closeModal('modal-produto')">Cancelar</button>
+                <button class="btn primary" onclick="pdvApp.saveProduct()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Histórico Detalhes -->
+    <div id="modal-historico-detalhes" class="modal-overlay">
+        <div class="modal glass">
+            <div class="modal-header">
+                <h3>Detalhes da Venda</h3>
+                <button class="btn-close" onclick="pdvApp.closeModal('modal-historico-detalhes')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="hist-detail-id">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; background: rgba(0,0,0,0.1); padding: 10px; border-radius: var(--radius-md);">
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Comanda / Cliente</div>
+                        <div id="hist-detail-client" style="font-weight: bold; font-size: 1.1rem;">-</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Data / Hora</div>
+                        <div id="hist-detail-date" style="font-weight: bold;">-</div>
+                    </div>
+                </div>
+
+                <div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: var(--radius-md); padding: 10px;" id="hist-detail-items">
+                    <!-- Items -->
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px;">
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Forma de Pagamento</div>
+                        <div id="hist-detail-payment" style="font-weight: bold;">-</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Desconto</div>
+                        <div id="hist-detail-discount" style="color: var(--danger);">-</div>
+                        <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">Total</div>
+                        <div id="hist-detail-total" style="font-weight: bold; font-size: 1.3rem; color: var(--success);">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                <div>
+                    <button class="btn" style="background: var(--danger); color: white;" id="btn-cancel-direct-sale" onclick="pdvApp.cancelDirectSaleFromHistory()">Cancelar Venda</button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn secondary" onclick="pdvApp.closeModal('modal-historico-detalhes')">Fechar</button>
+                    <button class="btn" style="background: var(--warning); color: #000;" onclick="pdvApp.reprintSaleFromHistory()"><i class="fa-solid fa-print"></i> Imprimir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p style="margin-top: 15px; font-weight: bold; font-size: 1.1rem; color: var(--text-main);">Sincronizando com a Nuvem...</p>
+    </div>
+
+    <!-- Print Receipt Container -->
+    <div id="receipt-container" class="receipt-container"></div>
+    <div id="report-container" class="report-container"></div>
+    <!-- Custom Modals -->
+    <div id="custom-alert-modal" class="modal-overlay" style="z-index: 10000;">
+        <div class="modal custom-alert" style="max-width: 400px; text-align: center; border-radius: 12px; border-top: 4px solid var(--primary);">
+            <div class="modal-header" style="justify-content: center; border-bottom: none; padding-bottom: 0;">
+                <h3 id="custom-alert-title" style="display: none;">Aviso</h3>
+            </div>
+            <div class="modal-body" style="padding: 20px 30px;">
+                <p id="custom-alert-message" style="font-size: 1.1rem; color: var(--text-main); margin-bottom: 0;"></p>
+            </div>
+            <div class="modal-footer" style="justify-content: center; border-top: none; padding-top: 0;">
+                <button id="custom-alert-ok" class="btn btn-primary" style="min-width: 120px;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-confirm-modal" class="modal-overlay" style="z-index: 10000;">
+        <div class="modal custom-confirm" style="max-width: 400px; text-align: center; border-radius: 12px; border-top: 4px solid var(--danger);">
+            <div class="modal-header" style="justify-content: center; border-bottom: none; padding-bottom: 0;">
+                <h3 id="custom-confirm-title">Confirmação</h3>
+            </div>
+            <div class="modal-body" style="padding: 20px 30px;">
+                <p id="custom-confirm-message" style="font-size: 1.1rem; color: var(--text-main); margin-bottom: 0;"></p>
+            </div>
+            <div class="modal-footer" style="justify-content: center; border-top: none; padding-top: 0; gap: 15px;">
+                <button id="custom-confirm-no" class="btn btn-secondary" style="min-width: 100px;">Não</button>
+                <button id="custom-confirm-yes" class="btn btn-danger" style="min-width: 100px;">Sim</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-feirante-charge" class="modal-overlay" style="z-index: 10001;">
+        <div class="modal glass" style="max-width: 460px; width: 95%;">
+            <div class="modal-header">
+                <h3 id="feirante-charge-title">Cobrança Feirante</h3>
+                <button class="btn-close" onclick="pdvApp.closeFeiranteChargeModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; background: rgba(0,0,0,0.12); border-radius: var(--radius-md); padding: 12px 14px;">
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Cliente</div>
+                        <div id="feirante-charge-client" style="font-weight: bold; font-size: 1.05rem;">-</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="color: var(--text-muted); font-size: 0.85rem;">Total do Pedido</div>
+                        <div id="feirante-charge-total" class="highlight-text" style="font-size: 1.15rem;">R$ 0,00</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="feirante-charge-method">Forma de Pagamento *</label>
+                    <select id="feirante-charge-method" class="input-field" required>
+                        <option value="">Selecione...</option>
+                        <option value="Débito">Débito</option>
+                        <option value="Crédito">Crédito</option>
+                        <option value="PIX">PIX</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Troca">Troca</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="feirante-charge-paid">Valor Pago *</label>
+                    <input type="text" id="feirante-charge-paid" class="input-field" inputmode="decimal" placeholder="R$ 0,00" required>
+                </div>
+
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px;">
+                    Se a forma de pagamento for Troca, o valor pago será fixado automaticamente em R$ 0,00.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" onclick="pdvApp.closeFeiranteChargeModal()">Cancelar</button>
+                <button class="btn success" onclick="pdvApp.confirmFeiranteCharge()"><i class="fa-solid fa-check"></i> Confirmar Cobrança</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

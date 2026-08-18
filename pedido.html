@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cardápio Online — Edu Espetinhos</title>
+    <meta name="description" content="Faça seu pedido online na Edu Espetinhos. Espetinhos, lanches e muito mais com pagamento rápido via PIX ou cartão.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Mercado Pago SDK -->
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+
+    <link rel="stylesheet" href="pedido.css">
+</head>
+<body>
+
+<!-- =========================================================
+     LOADING OVERLAY
+     ========================================================= -->
+<div id="loading-overlay" class="loading-overlay">
+    <div class="loading-inner">
+        <div class="loading-logo">
+            <i class="fa-solid fa-fire-flame-curved"></i>
+        </div>
+        <div class="spinner-ring"></div>
+        <p class="loading-text">Carregando cardápio...</p>
+    </div>
+</div>
+
+<!-- =========================================================
+     HEADER
+     ========================================================= -->
+<header class="app-header">
+    <div class="header-inner">
+        <div class="brand">
+            <div class="brand-icon-wrap">
+                <i class="fa-solid fa-fire-flame-curved"></i>
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">Edu <span class="brand-highlight">Espetinhos</span></span>
+                <span class="brand-sub">Peça agora e retire na loja</span>
+            </div>
+        </div>
+        <div class="header-badge">
+            <i class="fa-solid fa-circle status-dot"></i>
+            <span>Aberto</span>
+        </div>
+    </div>
+</header>
+
+<!-- =========================================================
+     MAIN — CARDÁPIO
+     ========================================================= -->
+<main class="menu-main" id="menu-main">
+
+    <!-- Categorias -->
+    <div class="categories-wrapper">
+        <div class="categories-nav" id="categories-nav">
+            <!-- Injetado pelo JS -->
+        </div>
+    </div>
+
+    <!-- Grid de Produtos -->
+    <div class="products-section">
+        <div class="products-grid" id="products-grid">
+            <!-- Injetado pelo JS -->
+        </div>
+    </div>
+
+</main>
+
+<!-- =========================================================
+     CART BAR FLUTUANTE
+     ========================================================= -->
+<div class="cart-bar hidden" id="cart-bar" onclick="pedidoApp.toggleCart()">
+    <div class="cart-bar-left">
+        <div class="cart-bar-icon">
+            <i class="fa-solid fa-bag-shopping"></i>
+            <span class="cart-badge" id="cart-badge">0</span>
+        </div>
+        <span class="cart-bar-label">Ver sacola</span>
+    </div>
+    <div class="cart-bar-right">
+        <span class="cart-bar-total" id="cart-total-bar">R$ 0,00</span>
+        <i class="fa-solid fa-chevron-up cart-bar-arrow"></i>
+    </div>
+</div>
+
+<!-- =========================================================
+     MODAL CARRINHO (Bottom Sheet)
+     ========================================================= -->
+<div class="sheet-overlay" id="cart-modal" onclick="if(event.target===this) pedidoApp.toggleCart()">
+    <div class="bottom-sheet">
+        <div class="sheet-handle"></div>
+
+        <div class="sheet-header">
+            <h2 class="sheet-title">Sua Sacola</h2>
+            <button class="btn-icon" onclick="pedidoApp.toggleCart()" aria-label="Fechar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="sheet-body" id="cart-items">
+            <div class="empty-cart">
+                <i class="fa-solid fa-bag-shopping empty-cart-icon"></i>
+                <p>Sua sacola está vazia</p>
+                <span>Adicione itens do cardápio</span>
+            </div>
+        </div>
+
+        <div class="sheet-footer" id="cart-footer" style="display:none">
+            <div class="cart-summary">
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span id="cart-subtotal">R$ 0,00</span>
+                </div>
+                <div class="summary-row summary-total">
+                    <span>Total</span>
+                    <strong id="cart-total-modal">R$ 0,00</strong>
+                </div>
+            </div>
+            <button class="btn-checkout" id="btn-proceed-checkout" onclick="pedidoApp.openCheckoutForm()">
+                <span>Ir para pagamento</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================
+     MODAL PERSONALIZAR ITEM
+     ========================================================= -->
+<div class="sheet-overlay" id="modal-customize">
+    <div class="bottom-sheet customize-sheet">
+        <div class="sheet-handle"></div>
+
+        <div class="sheet-header">
+            <div>
+                <h2 class="sheet-title" id="customize-product-name">Personalizar</h2>
+                <p class="customize-product-price" id="customize-product-price">R$ 0,00</p>
+            </div>
+            <button class="btn-icon" onclick="pedidoApp.closeModal('modal-customize')" aria-label="Fechar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="sheet-body customize-body">
+            <input type="hidden" id="customize-product-id">
+
+            <!-- Adicionais (apenas lanches) -->
+            <div id="customize-addons-container" class="customize-section" style="display:none">
+                <div class="section-label">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    Adicionais
+                </div>
+                <div class="addon-picker">
+                    <select id="customize-addon-select" class="addon-select">
+                    </select>
+                    <button type="button" class="btn-addon-add" onclick="pedidoApp.addSelectedAddon()">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div id="customize-addons-list" class="addons-list"></div>
+            </div>
+
+            <!-- Ingredientes (apenas lanches) -->
+            <div id="customize-ingredients-container" class="customize-section" style="display:none">
+                <div class="section-label">
+                    <i class="fa-solid fa-leaf"></i>
+                    Remover ingredientes
+                </div>
+                <div id="customize-variations-ingredients-list" class="var-pills"></div>
+            </div>
+
+            <!-- Ponto da Carne -->
+            <div class="customize-section">
+                <div class="section-label">
+                    <i class="fa-solid fa-fire"></i>
+                    Ponto da carne
+                </div>
+                <div id="customize-variations-doneness-list" class="var-pills"></div>
+            </div>
+
+            <!-- Extras -->
+            <div id="customize-extras-container" class="customize-section" style="display:none">
+                <div class="section-label">
+                    <i class="fa-solid fa-box"></i>
+                    Opções extras
+                </div>
+                <div id="customize-variations-extras-list" class="var-pills"></div>
+            </div>
+        </div>
+
+        <div class="sheet-footer customize-footer">
+            <div class="customize-qty-row">
+                <div class="qty-stepper">
+                    <button type="button" class="qty-step-btn" onclick="pedidoApp.updateCustomizeQty(-1)">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <span class="qty-step-value" id="customize-qty">1</span>
+                    <button type="button" class="qty-step-btn" onclick="pedidoApp.updateCustomizeQty(1)">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div class="customize-total-label">
+                    Total: <strong id="customize-total">R$ 0,00</strong>
+                </div>
+            </div>
+            <div class="customize-actions">
+                <button type="button" class="btn-ghost" onclick="pedidoApp.closeModal('modal-customize')">Cancelar</button>
+                <button type="button" class="btn-primary-solid" onclick="pedidoApp.confirmCustomization()">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    Adicionar à sacola
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================
+     TELA CHECKOUT (Full Screen)
+     ========================================================= -->
+<div class="fullscreen-overlay" id="checkout-modal">
+    <div class="fullscreen-inner">
+
+        <!-- Header do Checkout -->
+        <div class="fs-header">
+            <button class="btn-back" onclick="pedidoApp.closeCheckoutForm()">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h1 class="fs-title">Finalizar Pedido</h1>
+            <div style="width:40px"></div>
+        </div>
+
+        <div class="fs-body" id="checkout-form-wrapper">
+            <form id="checkout-form" onsubmit="pedidoApp.processCheckout(event)" novalidate>
+
+                <!-- Dados do cliente -->
+                <div class="checkout-card">
+                    <div class="checkout-card-title">
+                        <i class="fa-solid fa-user"></i>
+                        Seus dados
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="client-name">Nome *</label>
+                            <input class="form-input" type="text" id="client-name" required placeholder="Seu nome">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="client-lastname">Sobrenome *</label>
+                            <input class="form-input" type="text" id="client-lastname" required placeholder="Seu sobrenome">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="client-phone">WhatsApp *</label>
+                        <input class="form-input" type="tel" id="client-phone" required
+                            placeholder="(00) 00000-0000" onkeyup="pedidoApp.maskPhone(this)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="client-obs">Observações <span class="label-opt">(opcional)</span></label>
+                        <textarea class="form-input form-textarea" id="client-obs"
+                            placeholder="Ex: sem cebola, entregar no balcão..." rows="3"></textarea>
+                    </div>
+                </div>
+
+                <!-- Resumo do pedido -->
+                <div class="checkout-card" id="checkout-order-summary">
+                    <div class="checkout-card-title">
+                        <i class="fa-solid fa-receipt"></i>
+                        Resumo do pedido
+                    </div>
+                    <div id="checkout-items-list" class="checkout-items-list"></div>
+                    <div class="checkout-totals">
+                        <div class="checkout-total-row">
+                            <span>Total</span>
+                            <strong id="checkout-total-display">R$ 0,00</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Forma de pagamento -->
+                <div class="checkout-card">
+                    <div class="checkout-card-title">
+                        <i class="fa-solid fa-wallet"></i>
+                        Forma de pagamento
+                    </div>
+                    <div id="payment-method-selector" class="payment-methods-grid">
+                        <button type="button" class="payment-method-btn" id="btn-pm-pix"
+                            onclick="pedidoApp.selectPaymentMethod('bankTransfer')">
+                            <div class="pm-icon pix-icon">
+                                <i class="fa-brands fa-pix"></i>
+                            </div>
+                            <span class="pm-label">PIX</span>
+                            <span class="pm-sub">Aprovação imediata</span>
+                        </button>
+                        <button type="button" class="payment-method-btn" id="btn-pm-credit"
+                            onclick="pedidoApp.selectPaymentMethod('creditCard')">
+                            <div class="pm-icon">
+                                <i class="fa-solid fa-credit-card"></i>
+                            </div>
+                            <span class="pm-label">Crédito</span>
+                            <span class="pm-sub">Até 12x</span>
+                        </button>
+                        <button type="button" class="payment-method-btn" id="btn-pm-debit"
+                            onclick="pedidoApp.selectPaymentMethod('debitCard')">
+                            <div class="pm-icon">
+                                <i class="fa-solid fa-money-check-dollar"></i>
+                            </div>
+                            <span class="pm-label">Débito</span>
+                            <span class="pm-sub">À vista</span>
+                        </button>
+                    </div>
+
+                    <!-- Container do Brick (cartão) -->
+                    <div id="wallet_container" style="display:none; margin-top: 16px;"></div>
+
+                    <!-- Container do botão PIX -->
+                    <div id="pix-action-container" style="display:none; margin-top: 16px;">
+                        <div class="pix-confirm-box">
+                            <div class="pix-confirm-info">
+                                <i class="fa-brands fa-pix" style="color:#00BDAE; font-size:1.5rem;"></i>
+                                <div>
+                                    <p style="font-weight:600; margin:0;">Pagamento via PIX</p>
+                                    <p style="color:var(--text-muted); font-size:0.85rem; margin:0;">O QR Code será gerado após confirmar</p>
+                                </div>
+                            </div>
+                            <button type="button" id="btn-confirm-pix" class="btn-pix-confirm"
+                                onclick="pedidoApp.processPixPayment()">
+                                <i class="fa-brands fa-pix"></i>
+                                Gerar QR Code PIX
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Botão fallback (manual) -->
+                    <button type="submit" class="btn-checkout-pay" id="btn-pay" style="display:none; margin-top:16px;">
+                        <i class="fa-solid fa-lock"></i>
+                        Confirmar pedido
+                    </button>
+                </div>
+
+                <div class="mp-security-badge">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Pagamento processado com segurança via Mercado Pago</span>
+                </div>
+            </form>
+        </div>
+
+        <!-- =========================================================
+             TELA PIX (substitui o form)
+             ========================================================= -->
+        <div class="pix-screen" id="pix-container" style="display:none">
+
+            <!-- Estado 1: Aguardando Pagamento -->
+            <div id="pix-waiting-state">
+                <div class="pix-success-header">
+                    <div class="pix-success-icon" style="background: rgba(0, 189, 174, 0.15); color: #00BDAE;">
+                        <i class="fa-brands fa-pix"></i>
+                    </div>
+                    <h2 class="pix-success-title">Pague com PIX</h2>
+                    <p class="pix-success-sub">Escaneie o QR Code ou copie o código para confirmar seu pedido</p>
+                </div>
+
+                <div class="pix-card">
+                    <div class="pix-qr-wrap">
+                        <img id="pix-qr-img" src="" alt="QR Code PIX" class="pix-qr-img">
+                    </div>
+
+                    <div class="pix-divider">
+                        <span>ou use o código abaixo</span>
+                    </div>
+
+                    <div class="pix-copy-section">
+                        <label class="pix-copy-label">PIX Copia e Cola</label>
+                        <div class="pix-copy-row">
+                            <input type="text" id="pix-copia-cola" class="pix-code-input" readonly>
+                            <button type="button" class="btn-copy-pix" id="btn-copy-pix"
+                                onclick="pedidoApp.copyPixCode()">
+                                <i class="fa-regular fa-copy"></i>
+                                Copiar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pix-status-indicator" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; padding: 10px; background: rgba(0, 189, 174, 0.1); border-radius: 8px; color: #00BDAE; font-size: 0.9rem; font-weight: 500;">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span>Aguardando confirmação do banco...</span>
+                    </div>
+
+                    <div class="pix-info-box" style="margin-top: 12px;">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <p>Assim que você pagar no app do banco, esta tela atualizará automaticamente!</p>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-pix-close" onclick="pedidoApp.closeCheckoutForm()">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Voltar ao cardápio
+                </button>
+            </div>
+
+            <!-- Estado 2: Pagamento Aprovado com Sucesso -->
+            <div id="pix-approved-state" style="display: none; text-align: center; padding: 20px 10px;">
+                <div class="pix-success-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981; width: 70px; height: 70px; font-size: 2rem; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: #10b981; margin-bottom: 8px;">Pagamento Confirmado!</h2>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 24px;">
+                    Seu pedido foi aprovado e <strong>enviado ao PDV / Cozinha</strong> para preparo.
+                </p>
+
+                <div id="pix-approved-summary" style="background: var(--bg-card, #1e293b); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; text-align: left; margin-bottom: 24px;">
+                </div>
+
+                <button type="button" class="btn-checkout-pay" style="width: 100%;" onclick="pedidoApp.closeCheckoutForm()">
+                    <i class="fa-solid fa-utensils"></i>
+                    Fazer Novo Pedido
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<script src="pedido.js"></script>
+</body>
+</html>
