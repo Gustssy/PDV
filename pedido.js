@@ -59,7 +59,7 @@ const pedidoApp = (function () {
         return `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
 
-    // --- Local Storage de Pedidos Recentes ---
+    // --- Storage de Pedidos Recentes & Dados do Cliente ---
     function saveRecentOrderId(orderId) {
         if (!orderId) return;
         lastPlacedOrderId = String(orderId);
@@ -81,7 +81,21 @@ const pedidoApp = (function () {
         }
     }
 
-    // --- Load Products from Supabase ---
+    function saveCustomerInfoLocally(name, lastname, phone) {
+        try {
+            localStorage.setItem('edu_customer_info', JSON.stringify({ name, lastname, phone }));
+        } catch(e) {}
+    }
+
+    function getSavedCustomerInfo() {
+        try {
+            return JSON.parse(localStorage.getItem('edu_customer_info') || '{}');
+        } catch(e) {
+            return {};
+        }
+    }
+
+    // --- Carregamento de Produtos do Supabase ---
     async function loadProducts(retries = 2) {
         showLoading();
         try {
@@ -97,7 +111,7 @@ const pedidoApp = (function () {
             const { data, error } = await client.from('products').select('*');
             if (error) throw error;
 
-            // Filter out raw materials (Insumos)
+            // Filtra insumos (matérias-primas)
             products = (data || []).filter(p => {
                 const cat = (p.category || '').toLowerCase().trim();
                 return cat !== 'insumos' && !(p.israwmaterial === true || p.israwmaterial === 'true');
@@ -125,7 +139,7 @@ const pedidoApp = (function () {
         }
     }
 
-    // --- Realtime Stock Updates ---
+    // --- Sincronização em Tempo Real de Estoque ---
     function setupRealtimeProducts() {
         const client = getSupabaseClient();
         if (!client) return;
@@ -143,13 +157,13 @@ const pedidoApp = (function () {
                         }
                     }
                     renderProducts();
-                    updateCartUI(); // Validate cart against new stock
+                    updateCartUI();
                 }
             })
             .subscribe();
     }
 
-    // --- Search Filter (Menu) ---
+    // --- Filtro de Busca ---
     function filterSearch(query) {
         searchQuery = (query || '').trim().toLowerCase();
         const clearBtn = document.getElementById('search-clear-btn');
@@ -165,7 +179,7 @@ const pedidoApp = (function () {
         filterSearch('');
     }
 
-    // --- Render Categories ---
+    // --- Renderização das Categorias ---
     function renderCategories() {
         const container = document.getElementById('categories-nav');
         if (!container) return;
@@ -173,7 +187,7 @@ const pedidoApp = (function () {
 
         categories.forEach(cat => {
             const btn = document.createElement('button');
-            btn.className = `cat-btn ${currentCategory === cat ? 'active' : ''}`;
+            btn.className = `category-chip ${currentCategory === cat ? 'active' : ''}`;
             
             let icon = 'fa-tag';
             const catLower = cat.toLowerCase();
@@ -194,7 +208,7 @@ const pedidoApp = (function () {
         });
     }
 
-    // --- Render Products ---
+    // --- Renderização dos Produtos ---
     function renderProducts() {
         const container = document.getElementById('products-grid');
         const titleEl = document.getElementById('current-category-title');
@@ -225,8 +239,8 @@ const pedidoApp = (function () {
             container.innerHTML = `
                 <div style="grid-column: 1 / -1; text-align: center; padding: 48px 16px; color: var(--text-muted);">
                     <i class="fa-solid fa-magnifying-glass" style="font-size: 2rem; margin-bottom: 12px; opacity: 0.5;"></i>
-                    <p style="font-weight: 600; font-size: 1rem; color: var(--text-secondary);">Nenhum produto encontrado</p>
-                    <span style="font-size: 0.85rem;">Tente buscar por outro termo ou categoria</span>
+                    <p style="font-weight: 700; font-size: 1rem; color: var(--text-secondary);">Nenhum produto encontrado</p>
+                    <span style="font-size: 0.85rem;">Tente buscar por outro termo ou categoria.</span>
                 </div>
             `;
             return;
@@ -245,23 +259,23 @@ const pedidoApp = (function () {
 
             let badgeHtml = '';
             if (isOutOfStock) {
-                badgeHtml = `<span class="product-badge badge-esgotado">Esgotado</span>`;
+                badgeHtml = `<span class="badge-stock out">Esgotado</span>`;
             } else if (isLowStock) {
-                badgeHtml = `<span class="product-badge badge-ultimas">Últimas ${stock}</span>`;
+                badgeHtml = `<span class="badge-stock low">Últimas ${stock}</span>`;
             }
 
             let actionHtml = '';
             if (isOutOfStock) {
-                actionHtml = `<span class="esgotado-label">Indisponível</span>`;
+                actionHtml = `<span class="out-of-stock-text">Indisponível</span>`;
             } else if (qty > 0) {
                 actionHtml = `
-                    <button class="btn-add-product has-qty" onclick="pedidoApp.openCustomizeModal('${p.id}')" title="Alterar ou adicionar mais">
+                    <button class="btn-card-add has-qty" onclick="pedidoApp.openCustomizeModal('${p.id}')" title="Alterar ou adicionar mais">
                         <i class="fa-solid fa-check"></i> ${qty}
                     </button>
                 `;
             } else {
                 actionHtml = `
-                    <button class="btn-add-product" onclick="pedidoApp.openCustomizeModal('${p.id}')" title="Adicionar">
+                    <button class="btn-card-add" onclick="pedidoApp.openCustomizeModal('${p.id}')" title="Adicionar">
                         <i class="fa-solid fa-plus"></i>
                     </button>
                 `;
@@ -269,13 +283,13 @@ const pedidoApp = (function () {
 
             card.innerHTML = `
                 <div class="product-card-top">
-                    <div class="product-badges-row">
+                    <div class="product-meta-row">
                         <span class="product-category-tag">${p.category || 'Geral'}</span>
                         ${badgeHtml}
                     </div>
-                    <div class="product-name">${p.name}</div>
+                    <div class="product-title">${p.name}</div>
                 </div>
-                <div class="product-footer">
+                <div class="product-card-footer">
                     <div class="product-price">R$ ${Number(p.price).toFixed(2).replace('.', ',')}</div>
                     ${actionHtml}
                 </div>
@@ -284,7 +298,7 @@ const pedidoApp = (function () {
         });
     }
 
-    // --- Customization Modals ---
+    // --- Controle de Modais ---
     function openModal(id) {
         const m = document.getElementById(id);
         if (m) m.classList.add('active');
@@ -302,6 +316,7 @@ const pedidoApp = (function () {
         }
     }
 
+    // --- Personalização do Produto ---
     function openCustomizeModal(productId) {
         const prod = products.find(p => p.id === productId);
         if (!prod) return;
@@ -310,7 +325,7 @@ const pedidoApp = (function () {
         currentCustomizeVariations = [];
         currentCustomizeAddons = [];
         
-        // Defaults for variations based on category
+        // Padrão de Ponto da Carne para Carnes e Espetos
         const isEspeto = prod.name.toLowerCase().includes('espeto') || (prod.category && prod.category.toLowerCase().includes('espeto'));
         const isCarne = prod.name.toLowerCase().includes('carne') || prod.name.toLowerCase().includes('alcatra') || prod.name.toLowerCase().includes('picanha') || prod.name.toLowerCase().includes('contra');
         if (isEspeto || isCarne) {
@@ -383,17 +398,17 @@ const pedidoApp = (function () {
 
         const donenessContainer = document.getElementById('customize-doneness-container');
         if (donenessContainer) {
-            donenessContainer.style.display = isBebida ? 'none' : 'block';
+            donenessContainer.style.display = isBebida ? 'none' : 'flex';
         }
 
         const addonsContainer = document.getElementById('customize-addons-container');
         if (addonsContainer) {
-            addonsContainer.style.display = isLanche ? 'block' : 'none';
+            addonsContainer.style.display = isLanche ? 'flex' : 'none';
         }
 
         const ingredientsContainer = document.getElementById('customize-ingredients-container');
         if (ingredientsContainer) {
-            ingredientsContainer.style.display = isLanche ? 'block' : 'none';
+            ingredientsContainer.style.display = isLanche ? 'flex' : 'none';
         }
         
         const ingredientsList = document.getElementById('customize-variations-ingredients-list');
@@ -403,8 +418,8 @@ const pedidoApp = (function () {
                 const isSelected = currentCustomizeVariations.includes(vari);
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = `var-btn ${isSelected ? 'selected' : ''}`;
-                btn.textContent = vari;
+                btn.className = `chip-option ${isSelected ? 'selected' : ''}`;
+                btn.innerHTML = `<i class="fa-solid ${isSelected ? 'fa-xmark' : 'fa-minus'}"></i> ${vari}`;
                 btn.onclick = () => toggleVariation(vari);
                 ingredientsList.appendChild(btn);
             });
@@ -417,7 +432,7 @@ const pedidoApp = (function () {
                 const isSelected = currentCustomizeVariations.includes(vari);
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = `var-btn ${isSelected ? 'selected' : ''}`;
+                btn.className = `chip-option ${isSelected ? 'selected' : ''}`;
                 btn.textContent = vari;
                 btn.onclick = () => {
                     currentCustomizeVariations = currentCustomizeVariations.filter(v => !VARIATIONS_DONENESS.includes(v));
@@ -430,7 +445,7 @@ const pedidoApp = (function () {
 
         const extrasContainer = document.getElementById('customize-extras-container');
         if (extrasContainer) {
-            extrasContainer.style.display = 'block';
+            extrasContainer.style.display = 'flex';
         }
         const extrasList = document.getElementById('customize-variations-extras-list');
         if (extrasList) {
@@ -439,8 +454,8 @@ const pedidoApp = (function () {
                 const isSelected = currentCustomizeVariations.includes(vari);
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = `var-btn ${isSelected ? 'selected' : ''}`;
-                btn.textContent = vari;
+                btn.className = `chip-option ${isSelected ? 'selected' : ''}`;
+                btn.innerHTML = `<i class="fa-solid ${isSelected ? 'fa-check' : 'fa-plus'}"></i> ${vari}`;
                 btn.onclick = () => toggleVariation(vari);
                 extrasList.appendChild(btn);
             });
@@ -487,23 +502,16 @@ const pedidoApp = (function () {
 
         currentCustomizeAddons.forEach(a => {
             const div = document.createElement('div');
-            div.style.display = 'flex';
-            div.style.justifyContent = 'space-between';
-            div.style.alignItems = 'center';
-            div.style.background = 'var(--bg-elevated)';
-            div.style.padding = '8px 12px';
-            div.style.borderRadius = 'var(--r-md)';
-            div.style.border = '1px solid var(--border)';
-            
+            div.className = 'addon-active-item';
             div.innerHTML = `
                 <div>
-                    <div style="font-weight: 600; font-size: 0.9rem;">${a.product.name}</div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">${a.product.name}</div>
                     <div style="color: var(--success); font-size: 0.8rem; font-weight: 700;">+ R$ ${Number(a.product.price).toFixed(2).replace('.', ',')}</div>
                 </div>
-                <div class="qty-controls" style="display: flex; align-items: center; gap: 8px;">
-                    <button type="button" class="qty-btn" onclick="pedidoApp.updateCustomizeAddonQty('${a.product.id}', -1)">-</button>
-                    <span class="qty-value">${a.qty}</span>
-                    <button type="button" class="qty-btn" onclick="pedidoApp.updateCustomizeAddonQty('${a.product.id}', 1)">+</button>
+                <div class="stepper-widget" style="transform: scale(0.85); transform-origin: right;">
+                    <button type="button" class="stepper-btn" onclick="pedidoApp.updateCustomizeAddonQty('${a.product.id}', -1)">-</button>
+                    <span class="stepper-value">${a.qty}</span>
+                    <button type="button" class="stepper-btn" onclick="pedidoApp.updateCustomizeAddonQty('${a.product.id}', 1)">+</button>
                 </div>
             `;
             list.appendChild(div);
@@ -577,7 +585,7 @@ const pedidoApp = (function () {
         updateCartUI();
     }
 
-    // --- Cart Management ---
+    // --- Gerenciamento da Sacola (Carrinho) ---
     function updateCartIndex(index, delta) {
         if (!cart[index]) return;
         const item = cart[index];
@@ -598,6 +606,15 @@ const pedidoApp = (function () {
 
         renderProducts();
         updateCartUI();
+    }
+
+    function clearEntireCart() {
+        if (cart.length === 0) return;
+        if (confirm('Deseja realmente limpar toda a sua sacola?')) {
+            cart = [];
+            renderProducts();
+            updateCartUI();
+        }
     }
 
     function getCartTotal() {
@@ -645,10 +662,8 @@ const pedidoApp = (function () {
         if (modal.classList.contains('active')) {
             modal.classList.remove('active');
         } else {
-            if (getCartTotal().count > 0) {
-                renderCartModal();
-                modal.classList.add('active');
-            }
+            renderCartModal();
+            modal.classList.add('active');
         }
     }
 
@@ -656,6 +671,7 @@ const pedidoApp = (function () {
         const container = document.getElementById('cart-items');
         const totalModal = document.getElementById('cart-total-modal');
         const cartFooter = document.getElementById('cart-footer');
+        const clearBtn = document.getElementById('btn-clear-cart');
         const { total, count } = getCartTotal();
 
         if (!container) return;
@@ -663,20 +679,18 @@ const pedidoApp = (function () {
 
         if (count === 0) {
             container.innerHTML = `
-                <div class="empty-cart">
-                    <i class="fa-solid fa-bag-shopping empty-cart-icon"></i>
-                    <p>Sua sacola está vazia</p>
-                    <span>Escolha itens deliciosos do nosso cardápio!</span>
+                <div class="cart-empty-view">
+                    <i class="fa-solid fa-bag-shopping cart-empty-icon"></i>
+                    <p style="font-weight: 700; font-size: 1.05rem; color: var(--text-secondary);">Sua sacola está vazia</p>
+                    <span style="font-size: 0.88rem; color: var(--text-muted);">Adicione itens saborosos do nosso cardápio!</span>
                 </div>`;
             if (totalModal) totalModal.textContent = 'R$ 0,00';
             if (cartFooter) cartFooter.style.display = 'none';
-            const btn = document.getElementById('btn-proceed-checkout');
-            if (btn) btn.disabled = true;
+            if (clearBtn) clearBtn.style.display = 'none';
             return;
         }
 
-        const btn = document.getElementById('btn-proceed-checkout');
-        if (btn) btn.disabled = false;
+        if (clearBtn) clearBtn.style.display = 'inline-flex';
         if (cartFooter) cartFooter.style.display = 'block';
         if (totalModal) totalModal.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
 
@@ -697,19 +711,19 @@ const pedidoApp = (function () {
             }
 
             const div = document.createElement('div');
-            div.className = 'cart-item';
+            div.className = 'cart-item-row';
             div.innerHTML = `
                 <div class="cart-item-info">
                     <div class="cart-item-name">${item.product.name}</div>
-                    ${modsText ? `<div class="cart-item-mods">${modsText}</div>` : ''}
+                    ${modsText ? `<div class="cart-item-customizations">${modsText}</div>` : ''}
                     <div class="cart-item-price">R$ ${Number(itemTotal * item.quantity).toFixed(2).replace('.', ',')}</div>
                 </div>
-                <div class="cart-item-controls">
-                    <button class="qty-btn remove-btn" onclick="pedidoApp.updateCartIndex(${index}, -1)" aria-label="Remover">
-                        <i class="fa-solid ${item.quantity === 1 ? 'fa-trash' : 'fa-minus'}"></i>
+                <div class="stepper-widget">
+                    <button class="stepper-btn" onclick="pedidoApp.updateCartIndex(${index}, -1)" aria-label="Remover">
+                        <i class="fa-solid ${item.quantity === 1 ? 'fa-trash-can' : 'fa-minus'}" style="${item.quantity === 1 ? 'color:var(--danger)' : ''}"></i>
                     </button>
-                    <span class="qty-value">${item.quantity}</span>
-                    <button class="qty-btn" onclick="pedidoApp.updateCartIndex(${index}, 1)" aria-label="Adicionar">
+                    <span class="stepper-value">${item.quantity}</span>
+                    <button class="stepper-btn" onclick="pedidoApp.updateCartIndex(${index}, 1)" aria-label="Adicionar">
                         <i class="fa-solid fa-plus"></i>
                     </button>
                 </div>
@@ -718,33 +732,79 @@ const pedidoApp = (function () {
         });
     }
 
-    // --- Checkout Form ---
+    // =========================================================
+    // FLUXO DE CHECKOUT EM ETAPAS (IDENTIFICAÇÃO -> PAGAMENTO)
+    // =========================================================
+    let checkoutCurrentStep = 1;
+    let selectedPaymentMethodKey = null;
+
     function openCheckoutForm() {
+        if (getCartTotal().count === 0) {
+            alert('Adicione pelo menos 1 item na sacola antes de prosseguir.');
+            return;
+        }
+
         document.getElementById('cart-modal').classList.remove('active');
         document.getElementById('checkout-modal').classList.add('active');
 
-        // Reset estado
-        document.getElementById('payment-method-selector').style.display = '';
-        document.getElementById('wallet_container').style.display = 'none';
-        document.getElementById('wallet_container').innerHTML = '';
-        document.getElementById('pix-action-container').style.display = 'none';
-        document.getElementById('pix-container').style.display = 'none';
-        
-        const formWrapper = document.getElementById('checkout-form-wrapper');
-        if (formWrapper) formWrapper.style.display = 'flex';
-        
-        const payBtn = document.getElementById('btn-pay');
-        if (payBtn) payBtn.style.display = 'none';
-        
-        document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
-        selectedPaymentMethodKey = null;
+        // Preenche dados salvos do cliente caso existam
+        const saved = getSavedCustomerInfo();
+        const nameInput = document.getElementById('client-name');
+        const lastnameInput = document.getElementById('client-lastname');
+        const phoneInput = document.getElementById('client-phone');
+        if (nameInput && !nameInput.value && saved.name) nameInput.value = saved.name;
+        if (lastnameInput && !lastnameInput.value && saved.lastname) lastnameInput.value = saved.lastname;
+        if (phoneInput && !phoneInput.value && saved.phone) phoneInput.value = saved.phone;
 
-        if (paymentBrickController) {
-            try { paymentBrickController.unmount(); } catch(e) {}
-            paymentBrickController = null;
+        goToCheckoutStep(1);
+    }
+
+    function goToCheckoutStep(step) {
+        checkoutCurrentStep = step;
+        const step1 = document.getElementById('checkout-step-1-content');
+        const step2 = document.getElementById('checkout-step-2-content');
+        const prog1 = document.getElementById('prog-step-1');
+        const prog2 = document.getElementById('prog-step-2');
+        const titleEl = document.getElementById('checkout-header-title');
+
+        if (step === 1) {
+            if (step1) step1.style.display = 'block';
+            if (step2) step2.style.display = 'none';
+            if (prog1) prog1.classList.add('active');
+            if (prog2) prog2.classList.remove('active');
+            if (titleEl) titleEl.textContent = 'Identificação';
+        } else if (step === 2) {
+            if (step1) step1.style.display = 'none';
+            if (step2) step2.style.display = 'block';
+            if (prog1) prog1.classList.add('active');
+            if (prog2) prog2.classList.add('active');
+            if (titleEl) titleEl.textContent = 'Resumo & Pagamento';
+            renderCheckoutSummary();
+        }
+    }
+
+    function proceedToPaymentStep() {
+        const name = document.getElementById('client-name').value.trim();
+        const lastname = document.getElementById('client-lastname').value.trim();
+        const phone = document.getElementById('client-phone').value.trim();
+
+        if (!name || !lastname) {
+            alert('Por favor, informe seu Nome e Sobrenome.');
+            return;
         }
 
-        renderCheckoutSummary();
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (phoneDigits.length < 10) {
+            alert('Por favor, informe um número de WhatsApp válido com DDD (Ex: 11 99999-9999).');
+            return;
+        }
+
+        saveCustomerInfoLocally(name, lastname, phone);
+        goToCheckoutStep(2);
+    }
+
+    function backToDetailsStep() {
+        goToCheckoutStep(1);
     }
 
     function renderCheckoutSummary() {
@@ -765,14 +825,21 @@ const pedidoApp = (function () {
                 });
             }
             const div = document.createElement('div');
-            div.className = 'checkout-item';
+            div.style.display = 'flex';
+            div.style.justifyContent = 'space-between';
+            div.style.alignItems = 'flex-start';
+            div.style.fontSize = '0.9rem';
+            div.style.paddingBottom = '6px';
+            div.style.borderBottom = '1px dashed var(--border-subtle)';
+            
             div.innerHTML = `
                 <div>
-                    <div class="checkout-item-name">${item.product.name}</div>
-                    ${modsText ? `<div class="checkout-item-mods">${modsText}</div>` : ''}
-                    <div class="checkout-item-qty">${item.quantity} unidade(s)</div>
+                    <div style="font-weight:700; color:var(--text-main);">${item.quantity}x ${item.product.name}</div>
+                    ${modsText ? `<div style="font-size:0.75rem; color:var(--text-muted);">${modsText}</div>` : ''}
                 </div>
-                <div class="checkout-item-price">R$ ${(itemTotal * item.quantity).toFixed(2).replace('.', ',')}</div>
+                <div style="font-family:'Outfit', sans-serif; font-weight:800; color:var(--brand-primary);">
+                    R$ ${(itemTotal * item.quantity).toFixed(2).replace('.', ',')}
+                </div>
             `;
             list.appendChild(div);
         });
@@ -793,7 +860,7 @@ const pedidoApp = (function () {
         const waitingState = document.getElementById('pix-waiting-state');
         const approvedState = document.getElementById('pix-approved-state');
 
-        if (formWrapper) formWrapper.style.display = 'block';
+        if (formWrapper) formWrapper.style.display = 'flex';
         if (pixScreen) pixScreen.style.display = 'none';
         if (waitingState) waitingState.style.display = 'block';
         if (approvedState) approvedState.style.display = 'none';
@@ -821,10 +888,9 @@ const pedidoApp = (function () {
             const btn = document.getElementById('btn-copy-pix');
             if (btn) {
                 btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!';
-                btn.classList.add('copied');
+                btn.classList.add('btn-primary');
                 setTimeout(() => {
                     btn.innerHTML = '<i class="fa-regular fa-copy"></i> Copiar';
-                    btn.classList.remove('copied');
                 }, 2500);
             }
         }).catch(() => {
@@ -832,6 +898,7 @@ const pedidoApp = (function () {
         });
     }
 
+    // --- Dedução Atômica de Estoque ---
     async function deductStockAtomically() {
         const itemTotals = new Map();
         cart.forEach(entry => {
@@ -847,10 +914,7 @@ const pedidoApp = (function () {
             }
         });
 
-        const items = Array.from(itemTotals.entries()).map(([id, qty]) => ({
-            id,
-            qty
-        }));
+        const items = Array.from(itemTotals.entries()).map(([id, qty]) => ({ id, qty }));
         
         const client = getSupabaseClient();
         const { data: stockResult, error: stockError } = await client.rpc('deduct_stock_batch', { p_items: items });
@@ -878,7 +942,7 @@ const pedidoApp = (function () {
         }
     }
 
-    // --- Save Web Order to Supabase ---
+    // --- Salvar Pedido no Supabase ---
     async function saveWebOrder({ id, clientName, clientPhone, observation, paymentStatus, selectedMethod }) {
         const { total } = getCartTotal();
 
@@ -940,7 +1004,6 @@ const pedidoApp = (function () {
         if (waitingState) waitingState.style.display = 'block';
         if (approvedState) approvedState.style.display = 'none';
 
-        // 1. Escuta em tempo real no Supabase
         const client = getSupabaseClient();
         if (client) {
             client.channel(`order-status-${paymentId}`)
@@ -957,7 +1020,6 @@ const pedidoApp = (function () {
                 .subscribe();
         }
 
-        // 2. Polling ativo a cada 2.5 segundos no backend
         pixPollingInterval = setInterval(async () => {
             try {
                 const res = await fetch(`${API_BASE_URL}/check_payment/${paymentId}`);
@@ -991,10 +1053,12 @@ const pedidoApp = (function () {
 
         if (summaryEl && orderSummary) {
             summaryEl.innerHTML = `
-                <div style="font-size: 1rem; margin-bottom: 8px;"><strong>Pedido:</strong> #${String(paymentId).slice(-6)}</div>
-                <div style="font-size: 1rem; margin-bottom: 8px;"><strong>Cliente:</strong> ${orderSummary.clientName}</div>
-                <div style="font-size: 1rem; margin-bottom: 8px;"><strong>Total Pago:</strong> R$ ${orderSummary.total.toFixed(2).replace('.', ',')}</div>
-                <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);">Status: <span style="color: #10b981; font-weight: 800;">✅ Pago & Enviado à Cozinha</span></div>
+                <div style="font-size: 0.95rem; margin-bottom: 6px;"><strong>Pedido:</strong> #${String(paymentId).slice(-6)}</div>
+                <div style="font-size: 0.95rem; margin-bottom: 6px;"><strong>Cliente:</strong> ${orderSummary.clientName}</div>
+                <div style="font-size: 0.95rem; margin-bottom: 6px;"><strong>Total Pago:</strong> R$ ${orderSummary.total.toFixed(2).replace('.', ',')}</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-subtle);">
+                    Status: <span style="color: var(--success); font-weight: 800;">✅ Pago & Enviado ao PDV / Cozinha</span>
+                </div>
             `;
         }
     }
@@ -1005,50 +1069,46 @@ const pedidoApp = (function () {
         openTrackerModal(orderIdToOpen);
     }
 
-    // --- Seletor de Método de Pagamento ---
-    let selectedPaymentMethodKey = null;
-
+    // =========================================================
+    // SELETOR E PROCESSAMENTO DE PAGAMENTO (PIX / DÉBITO / CRÉDITO)
+    // =========================================================
     function selectPaymentMethod(method) {
-        const name = document.getElementById('client-name').value.trim();
-        const lastname = document.getElementById('client-lastname').value.trim();
-        const phone = document.getElementById('client-phone').value.trim();
-        
-        if (!name || !lastname || !phone) {
-            alert('Por favor, preencha Nome, Sobrenome e WhatsApp antes de selecionar a forma de pagamento.');
-            return;
-        }
-
         selectedPaymentMethodKey = method;
 
-        // Destaca o botão ativo
-        document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.payment-method-card').forEach(b => b.classList.remove('active'));
         const btnMap = { creditCard: 'btn-pm-credit', debitCard: 'btn-pm-debit', bankTransfer: 'btn-pm-pix' };
         const btnEl = document.getElementById(btnMap[method]);
         if (btnEl) btnEl.classList.add('active');
 
+        const debitBanner = document.getElementById('debit-info-banner');
+        const pixContainer = document.getElementById('pix-action-container');
+        const walletContainer = document.getElementById('wallet_container');
+
         if (method === 'bankTransfer') {
-            document.getElementById('wallet_container').style.display = 'none';
-            document.getElementById('wallet_container').innerHTML = '';
-            document.getElementById('pix-action-container').style.display = 'block';
+            if (debitBanner) debitBanner.style.display = 'none';
+            if (walletContainer) { walletContainer.style.display = 'none'; walletContainer.innerHTML = ''; }
+            if (pixContainer) pixContainer.style.display = 'block';
+
             if (paymentBrickController) {
                 try { paymentBrickController.unmount(); } catch(e) {}
                 paymentBrickController = null;
             }
         } else {
-            document.getElementById('pix-action-container').style.display = 'none';
-            const container = document.getElementById('wallet_container');
-            container.style.display = 'block';
-            container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.9rem;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando formulário seguro do cartão...</div>';
+            if (pixContainer) pixContainer.style.display = 'none';
+            if (debitBanner) debitBanner.style.display = method === 'debitCard' ? 'flex' : 'none';
+            
+            if (walletContainer) {
+                walletContainer.style.display = 'block';
+                walletContainer.innerHTML = '<div style="text-align:center; padding:18px; color:var(--text-muted); font-size:0.88rem;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando formulário seguro do cartão...</div>';
+            }
             initCardPaymentBrick(method);
         }
     }
 
-    // API Base URL (Render em produção ou relativo em local)
     const API_BASE_URL = window.location.hostname.includes('netlify.app') 
         ? 'https://pdv-sdzo.onrender.com' 
         : '';
 
-    // --- Mercado Pago Card Payment Brick (Universal para Crédito e Débito) ---
     let paymentBrickController = null;
 
     async function initCardPaymentBrick(paymentMethodFilter) {
@@ -1072,6 +1132,9 @@ const pedidoApp = (function () {
             const bricksBuilder = mp.bricks();
             const isDebit = paymentMethodFilter === 'debitCard';
 
+            // Configuração Universal do Card Payment Brick
+            // Para Débito: maxInstallments = 1 (à vista em qualquer cartão)
+            // Para Crédito: maxInstallments = 12 (parcelamento)
             const settings = {
                 initialization: {
                     amount: total,
@@ -1084,7 +1147,7 @@ const pedidoApp = (function () {
                         style: {
                             theme: 'dark',
                             customVariables: {
-                                formBackgroundColor: '#151c2e',
+                                formBackgroundColor: '#151d2f',
                                 baseColor: '#f59e0b',
                             }
                         }
@@ -1104,7 +1167,7 @@ const pedidoApp = (function () {
                         const obs = document.getElementById('client-obs').value.trim();
 
                         if (!name || !lastname || !phone) {
-                            alert('Por favor, preencha os dados do cliente.');
+                            alert('Por favor, preencha os dados de identificação antes de pagar.');
                             return new Promise((resolve, reject) => reject());
                         }
 
@@ -1112,7 +1175,7 @@ const pedidoApp = (function () {
                         try {
                             deductedItems = await deductStockAtomically();
                         } catch(e) {
-                            alert('Erro: ' + (e.message || 'Falha de estoque'));
+                            alert('Erro de estoque: ' + (e.message || 'Falha ao reservar estoque.'));
                             return new Promise((resolve, reject) => reject());
                         }
 
@@ -1148,13 +1211,13 @@ const pedidoApp = (function () {
                                 openTrackerModal(createdOrder.id);
                             } else {
                                 await restoreStockAtomically(deductedItems);
-                                alert(`Pagamento não aprovado: ${data.status_detail || data.error || 'Tente novamente.'}`);
+                                alert(`Pagamento não aprovado: ${data.status_detail || data.error || 'Verifique os dados do cartão.'}`);
                             }
 
                         } catch(e) {
-                            console.error(e);
+                            console.error('Erro no processamento do cartão:', e);
                             await restoreStockAtomically(deductedItems);
-                            alert('Erro ao comunicar com o servidor de pagamento.');
+                            alert('Erro de conexão ao processar pagamento.');
                             throw e;
                         }
                     },
@@ -1173,7 +1236,7 @@ const pedidoApp = (function () {
         }
     }
 
-    // --- Fluxo PIX Direto ---
+    // --- Processamento do PIX ---
     async function processPixPayment() {
         const name = document.getElementById('client-name').value.trim();
         const lastname = document.getElementById('client-lastname').value.trim();
@@ -1181,7 +1244,7 @@ const pedidoApp = (function () {
         const obs = document.getElementById('client-obs').value.trim();
 
         if (!name || !lastname || !phone) {
-            alert('Por favor, preencha Nome, Sobrenome e WhatsApp antes de gerar o PIX.');
+            alert('Por favor, informe Nome, Sobrenome e WhatsApp antes de gerar o PIX.');
             return;
         }
 
@@ -1195,7 +1258,7 @@ const pedidoApp = (function () {
         try {
             deductedItems = await deductStockAtomically();
         } catch(e) {
-            alert('Erro: ' + (e.message || 'Falha de estoque'));
+            alert('Erro de estoque: ' + (e.message || 'Falha ao reservar estoque.'));
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-brands fa-pix"></i> Gerar QR Code PIX'; }
             return;
         }
@@ -1228,7 +1291,7 @@ const pedidoApp = (function () {
                 return;
             }
 
-            // 1. Salva o pedido no Supabase
+            // Salva pedido em web_orders
             await saveWebOrder({
                 id: String(data.payment_id),
                 clientName: `${name} ${lastname}`,
@@ -1238,13 +1301,12 @@ const pedidoApp = (function () {
                 selectedMethod: 'bankTransfer'
             });
 
-            // 2. Transiciona para a tela PIX
+            // Transição para tela PIX
             const formWrapper = document.getElementById('checkout-form-wrapper');
             if (formWrapper) formWrapper.style.display = 'none';
             const pixScreen = document.getElementById('pix-container');
             if (pixScreen) pixScreen.style.display = 'flex';
 
-            // 3. Preenche QR Code e Copia e Cola
             const qrImg = document.getElementById('pix-qr-img');
             if (qrImg) {
                 qrImg.src = data.qr_code_base64 || '';
@@ -1254,7 +1316,6 @@ const pedidoApp = (function () {
             const copiaCola = document.getElementById('pix-copia-cola');
             if (copiaCola) copiaCola.value = data.qr_code || '';
 
-            // 4. Inicia escuta em tempo real
             startCheckingPixStatus(String(data.payment_id), {
                 clientName: `${name} ${lastname}`,
                 total: currentTotal
@@ -1266,61 +1327,13 @@ const pedidoApp = (function () {
         } catch(e) {
             console.error('Erro no processPixPayment:', e);
             await restoreStockAtomically(deductedItems);
-            alert('Erro ao comunicar com o servidor de pagamento.');
+            alert('Erro de conexão ao gerar PIX.');
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-brands fa-pix"></i> Gerar QR Code PIX'; }
         }
     }
 
-    // --- Fallback manual ---
-    async function processCheckout(event) {
-        event.preventDefault();
-
-        const name = document.getElementById('client-name').value.trim();
-        const lastname = document.getElementById('client-lastname').value.trim();
-        const phone = document.getElementById('client-phone').value.trim();
-        const obs = document.getElementById('client-obs').value.trim();
-
-        if (!name || !lastname || !phone) {
-            alert('Por favor, preencha todos os campos obrigatórios.');
-            return;
-        }
-
-        const btn = document.getElementById('btn-pay');
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
-        }
-
-        let deductedItems = [];
-        try {
-            deductedItems = await deductStockAtomically();
-
-            const createdOrder = await saveWebOrder({
-                clientName: `${name} ${lastname}`,
-                clientPhone: phone,
-                observation: obs,
-                paymentStatus: 'manual'
-            });
-
-            alert(`✅ Pedido enviado!\nObrigado ${name}, o PDV já recebeu seu pedido.`);
-            cart = [];
-            updateCartUI();
-            closeCheckoutForm();
-            openTrackerModal(createdOrder.id);
-        } catch(e) {
-            console.error('Erro no processCheckout:', e);
-            await restoreStockAtomically(deductedItems);
-            alert('Erro ao enviar pedido.\n\nDetalhes: ' + (e.message || e));
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-credit-card"></i> Confirmar pedido';
-            }
-        }
-    }
-
     // =========================================================
-    // MODULO DE ACOMPANHAMENTO DE STATUS DE PEDIDOS (TRACKER)
+    // MÓDULO DE ACOMPANHAMENTO DE PEDIDOS (TRACKER)
     // =========================================================
     function openTrackerModal(orderIdToTrack = null) {
         openModal('tracker-modal');
@@ -1354,8 +1367,9 @@ const pedidoApp = (function () {
         chipsWrap.innerHTML = '';
 
         recent.forEach(id => {
-            const chip = document.createElement('div');
-            chip.className = `recent-order-chip ${activeId === id ? 'active' : ''}`;
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = `recent-chip-btn ${activeId === id ? 'active' : ''}`;
             chip.innerHTML = `<i class="fa-solid fa-receipt"></i> #${id.slice(-6)}`;
             chip.onclick = () => {
                 const input = document.getElementById('tracker-search-input');
@@ -1377,16 +1391,16 @@ const pedidoApp = (function () {
                 <div style="text-align: center; padding: 36px 16px; color: var(--text-muted);">
                     <i class="fa-solid fa-clock-rotate-left" style="font-size: 2.4rem; margin-bottom: 12px; opacity: 0.5;"></i>
                     <p style="font-weight: 700; font-size: 1rem; color: var(--text-secondary);">Consulte seu pedido em tempo real</p>
-                    <span style="font-size: 0.85rem;">Digite o WhatsApp informado na compra ou o número do pedido acima.</span>
+                    <span style="font-size: 0.85rem;">Digite o WhatsApp informado no pedido para ver o andamento na cozinha.</span>
                 </div>
             `;
             return;
         }
 
         resultContainer.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); margin-bottom: 12px;"></i>
-                <p style="font-weight: 600; font-size: 0.95rem; color: var(--text-secondary);">Localizando seu pedido...</p>
+            <div style="text-align: center; padding: 36px; color: var(--text-muted);">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--brand-primary); margin-bottom: 12px;"></i>
+                <p style="font-weight: 700; font-size: 0.95rem; color: var(--text-secondary);">Buscando pedido...</p>
             </div>
         `;
 
@@ -1395,21 +1409,19 @@ const pedidoApp = (function () {
             if (!client) throw new Error('Falha de conexão.');
 
             const digitsOnly = cleanQuery.replace(/\D/g, '');
-
-            // 1. Busca na tabela web_orders
             let orders = [];
-            
-            // Busca por ID exato
+
+            // 1. Busca por ID exato
             const { data: byId } = await client.from('web_orders').select('*').eq('id', cleanQuery);
             if (byId && byId.length > 0) orders.push(...byId);
 
-            // Se não achou ou se for busca por telefone (mais de 6 dígitos)
+            // 2. Busca por Telefone
             if (orders.length === 0 && digitsOnly.length >= 6) {
                 const { data: byPhone } = await client.from('web_orders').select('*').ilike('client_phone', `%${digitsOnly}%`).order('created_at', { ascending: false }).limit(5);
                 if (byPhone && byPhone.length > 0) orders.push(...byPhone);
             }
 
-            // Se ainda não achou, tenta por ID parcial
+            // 3. Busca por Like ID
             if (orders.length === 0) {
                 const { data: byLikeId } = await client.from('web_orders').select('*').ilike('id', `%${cleanQuery}%`).order('created_at', { ascending: false }).limit(3);
                 if (byLikeId && byLikeId.length > 0) orders.push(...byLikeId);
@@ -1417,19 +1429,16 @@ const pedidoApp = (function () {
 
             if (orders.length === 0) {
                 resultContainer.innerHTML = `
-                    <div style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
+                    <div style="text-align: center; padding: 36px 16px; color: var(--text-muted);">
                         <i class="fa-solid fa-circle-exclamation" style="font-size: 2.2rem; color: var(--danger); margin-bottom: 12px;"></i>
-                        <p style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">Nenhum pedido encontrado</p>
-                        <span style="font-size: 0.85rem; display: block; margin-top: 4px;">Verifique o número do WhatsApp ou código informado e tente novamente.</span>
+                        <p style="font-weight: 700; font-size: 1rem; color: var(--text-main);">Nenhum pedido encontrado</p>
+                        <span style="font-size: 0.85rem; display: block; margin-top: 4px;">Verifique o número ou código informado e tente novamente.</span>
                     </div>
                 `;
                 return;
             }
 
-            // Exibe o pedido mais recente encontrado
             const order = orders[0];
-            
-            // Verifica também se há comanda atualizada no PDV correspondente
             const { data: comandaData } = await client.from('comandas').select('*').eq('id', order.id).maybeSingle();
             
             renderOrderStatusCard(order, comandaData);
@@ -1450,7 +1459,6 @@ const pedidoApp = (function () {
         const resultContainer = document.getElementById('tracker-result-container');
         if (!resultContainer) return;
 
-        // Determina o status consolidado
         let currentStatus = order.status || 'pending';
         let isPaid = order.payment_status === 'approved' || (comanda && comanda.paid === true);
         
@@ -1460,127 +1468,115 @@ const pedidoApp = (function () {
             else if (comanda.status === 'open' && isPaid) currentStatus = 'pending';
         }
 
-        // Stepper:
-        // 1 = Aguardando Pagamento (waiting_payment)
-        // 2 = Em Preparo na Cozinha (pending / open)
-        // 3 = Pronto para Retirada (ready)
-        // 4 = Entregue / Concluído (closed / delivered)
-        let step = 2; // Default: em preparo
-        let badgeClass = 'badge-status-preparing';
-        let badgeLabel = '<i class="fa-solid fa-fire-burner"></i> Em Preparo na Cozinha';
+        let step = 2; // Default: Na cozinha
         let progressWidth = '45%';
+        let statusBadgeText = 'Na Cozinha';
 
         if (!isPaid && (currentStatus === 'waiting_payment' || order.payment_status === 'pending')) {
             step = 1;
-            badgeClass = 'badge-status-waiting';
-            badgeLabel = '<i class="fa-solid fa-clock"></i> Aguardando Pagamento';
             progressWidth = '15%';
+            statusBadgeText = 'Aguardando Pagamento';
         } else if (currentStatus === 'ready') {
             step = 3;
-            badgeClass = 'badge-status-ready';
-            badgeLabel = '<i class="fa-solid fa-bell"></i> Pronto para Retirada!';
             progressWidth = '75%';
+            statusBadgeText = 'Pronto p/ Retirada';
         } else if (currentStatus === 'closed' || currentStatus === 'delivered') {
             step = 4;
-            badgeClass = 'badge-status-closed';
-            badgeLabel = '<i class="fa-solid fa-circle-check"></i> Pedido Entregue';
             progressWidth = '100%';
+            statusBadgeText = 'Entregue';
         } else if (currentStatus === 'canceled') {
             step = 0;
-            badgeClass = 'badge-status-canceled';
-            badgeLabel = '<i class="fa-solid fa-ban"></i> Pedido Cancelado';
             progressWidth = '0%';
+            statusBadgeText = 'Cancelado';
         }
 
-        // Formatação de data
         const dateObj = new Date(order.created_at || Date.now());
         const timeStr = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         const dateStr = dateObj.toLocaleDateString('pt-BR');
 
-        // Itens
         let itemsHtml = '';
         const items = Array.isArray(order.items) ? order.items : [];
         items.forEach(it => {
             const qty = it.qty || 1;
             const price = Number(it.price || it.subtotal || 0);
             itemsHtml += `
-                <div class="order-item-mini">
-                    <div>
-                        <span><strong>${qty}x</strong> ${it.name || 'Item'}</span>
-                    </div>
-                    <div style="font-weight: 700; color: var(--primary);">R$ ${(price * qty).toFixed(2).replace('.', ',')}</div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; padding:3px 0;">
+                    <span><strong>${qty}x</strong> ${it.name || 'Item'}</span>
+                    <strong style="color:var(--brand-primary);">R$ ${(price * qty).toFixed(2).replace('.', ',')}</strong>
                 </div>
             `;
         });
 
         resultContainer.innerHTML = `
-            <div class="order-status-card">
-                <div class="order-status-header">
+            <div class="order-tracking-card">
+                <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:12px; border-bottom:1px solid var(--border-subtle);">
                     <div>
-                        <div class="order-status-id">Pedido #${String(order.id).slice(-6)}</div>
-                        <div class="order-status-time"><i class="fa-regular fa-clock"></i> ${dateStr} às ${timeStr}</div>
+                        <div style="font-family:'Outfit', sans-serif; font-size:1.15rem; font-weight:800; color:var(--text-main);">Pedido #${String(order.id).slice(-6)}</div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;"><i class="fa-regular fa-clock"></i> ${dateStr} às ${timeStr}</div>
                     </div>
-                    <span class="order-badge-status ${badgeClass}">${badgeLabel}</span>
+                    <span style="padding:6px 12px; border-radius:var(--r-full); font-size:0.75rem; font-weight:800; text-transform:uppercase; background-color:var(--bg-elevated); border:1px solid var(--border-medium); color:var(--brand-primary);">
+                        ${statusBadgeText}
+                    </span>
                 </div>
 
-                <!-- Stepper -->
-                <div class="order-stepper">
-                    <div class="order-stepper-progress" style="width: ${progressWidth};"></div>
+                <!-- Stepper de 4 Etapas -->
+                <div class="order-timeline-stepper">
+                    <div class="stepper-progress-fill" style="width: ${progressWidth};"></div>
                     
-                    <div class="step-item ${step >= 1 ? (step === 1 ? 'active' : 'completed') : ''}">
-                        <div class="step-circle"><i class="fa-solid fa-receipt"></i></div>
-                        <span class="step-label">Recebido</span>
+                    <div class="timeline-step ${step >= 1 ? (step === 1 ? 'active' : 'completed') : ''}">
+                        <div class="timeline-circle"><i class="fa-solid fa-receipt"></i></div>
+                        <span class="timeline-caption">Recebido</span>
                     </div>
-                    <div class="step-item ${step >= 2 ? (step === 2 ? 'active' : 'completed') : ''}">
-                        <div class="step-circle"><i class="fa-solid fa-fire"></i></div>
-                        <span class="step-label">Na Grelha</span>
+                    <div class="timeline-step ${step >= 2 ? (step === 2 ? 'active' : 'completed') : ''}">
+                        <div class="timeline-circle"><i class="fa-solid fa-fire-burner"></i></div>
+                        <span class="timeline-caption">Na Cozinha</span>
                     </div>
-                    <div class="step-item ${step >= 3 ? (step === 3 ? 'active' : 'completed') : ''}">
-                        <div class="step-circle"><i class="fa-solid fa-bell"></i></div>
-                        <span class="step-label">Pronto</span>
+                    <div class="timeline-step ${step >= 3 ? (step === 3 ? 'active' : 'completed') : ''}">
+                        <div class="timeline-circle"><i class="fa-solid fa-bell"></i></div>
+                        <span class="timeline-caption">Pronto</span>
                     </div>
-                    <div class="step-item ${step >= 4 ? 'completed' : ''}">
-                        <div class="step-circle"><i class="fa-solid fa-check"></i></div>
-                        <span class="step-label">Entregue</span>
+                    <div class="timeline-step ${step >= 4 ? 'completed' : ''}">
+                        <div class="timeline-circle"><i class="fa-solid fa-check"></i></div>
+                        <span class="timeline-caption">Entregue</span>
                     </div>
                 </div>
 
                 ${currentStatus === 'ready' ? `
-                    <div style="background: rgba(16, 185, 129, 0.15); border: 1.5px solid var(--success); border-radius: var(--r-md); padding: 14px; text-align: center; color: var(--success); font-weight: 800; animation: pulse-ready 2s infinite;">
-                        <i class="fa-solid fa-bell" style="font-size: 1.3rem; margin-bottom: 4px; display:block;"></i>
-                        🎉 SEU PEDIDO ESTÁ PRONTO! PODE RETIRAR NO BALCÃO!
+                    <div style="background-color:var(--success-light); border:1.5px solid var(--success-border); border-radius:var(--r-md); padding:12px; text-align:center; color:var(--success); font-weight:800;">
+                        <i class="fa-solid fa-bell" style="margin-right:6px;"></i>
+                        SEU PEDIDO ESTÁ PRONTO! PODE RETIRAR NO BALCÃO!
                     </div>
                 ` : ''}
 
                 <!-- Detalhes do Pedido -->
-                <div class="order-details-box">
-                    <div class="order-info-row">
+                <div style="background-color:var(--bg-input); border:1px solid var(--border-subtle); border-radius:var(--r-md); padding:14px; display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
                         <span>Cliente:</span>
-                        <strong>${order.client_name || 'Cliente'}</strong>
+                        <strong style="color:var(--text-main);">${order.client_name || 'Cliente'}</strong>
                     </div>
-                    <div class="order-info-row">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
                         <span>WhatsApp:</span>
-                        <strong>${order.client_phone || '-'}</strong>
+                        <strong style="color:var(--text-main);">${order.client_phone || '-'}</strong>
                     </div>
                     ${order.observation ? `
-                    <div class="order-info-row">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
                         <span>Obs:</span>
-                        <strong style="color: var(--text-muted);">${order.observation}</strong>
+                        <strong style="color:var(--text-muted);">${order.observation}</strong>
                     </div>` : ''}
                     
-                    <div class="order-items-mini-list">
+                    <div style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--border-subtle);">
                         ${itemsHtml}
                     </div>
 
-                    <div class="order-info-row" style="margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 1rem;">
-                        <span>Total:</span>
-                        <strong style="font-family:'Outfit', sans-serif; font-size: 1.25rem; color: var(--primary);">R$ ${Number(order.total || 0).toFixed(2).replace('.', ',')}</strong>
+                    <div style="margin-top:6px; padding-top:8px; border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700; color:var(--text-main);">Total:</span>
+                        <strong style="font-family:'Outfit', sans-serif; font-size:1.25rem; color:var(--brand-primary);">R$ ${Number(order.total || 0).toFixed(2).replace('.', ',')}</strong>
                     </div>
                 </div>
 
-                <div class="order-live-ping">
-                    <i class="fa-solid fa-circle-dot fa-beat" style="color: var(--info);"></i>
-                    <span>Acompanhamento em tempo real com a cozinha</span>
+                <div style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:0.78rem; color:var(--info);">
+                    <i class="fa-solid fa-circle-dot fa-beat"></i>
+                    <span>Atualizando em tempo real com a cozinha</span>
                 </div>
             </div>
         `;
@@ -1616,7 +1612,7 @@ const pedidoApp = (function () {
             .subscribe();
     }
 
-    // --- Inicialização ---
+    // --- Inicialização Automática ---
     window.addEventListener('DOMContentLoaded', () => {
         loadProducts();
     });
@@ -1630,11 +1626,13 @@ const pedidoApp = (function () {
         updateCustomizeQty,
         confirmCustomization,
         updateCartIndex,
+        clearEntireCart,
         toggleCart,
         openCheckoutForm,
         closeCheckoutForm,
+        proceedToPaymentStep,
+        backToDetailsStep,
         maskPhone,
-        processCheckout,
         selectPaymentMethod,
         processPixPayment,
         copyPixCode,

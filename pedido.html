@@ -29,12 +29,7 @@
      ========================================================= -->
 <div id="loading-overlay" class="loading-overlay">
     <div class="loading-inner">
-        <div class="loading-logo-wrap">
-            <div class="spinner-ring"></div>
-            <div class="loading-logo">
-                <i class="fa-solid fa-fire-flame-curved"></i>
-            </div>
-        </div>
+        <div class="loading-spinner"></div>
         <p class="loading-text">Carregando cardápio...</p>
     </div>
 </div>
@@ -43,118 +38,122 @@
      APP HEADER
      ========================================================= -->
 <header class="app-header">
-    <div class="header-inner">
-        <div class="brand">
-            <div class="brand-icon-wrap">
+    <div class="header-container">
+        <div class="brand-wrap">
+            <div class="brand-icon">
                 <i class="fa-solid fa-fire-flame-curved"></i>
             </div>
-            <div class="brand-text">
-                <span class="brand-name">Edu <span class="brand-highlight">Espetinhos</span></span>
-                <span class="brand-sub">Cardápio & Pedidos Online</span>
+            <div>
+                <div class="brand-title">Edu <span>Espetinhos</span></div>
+                <div class="brand-subtitle">Cardápio & Pedidos Online</div>
             </div>
         </div>
-        <div class="header-right">
-            <button type="button" class="header-track-btn" onclick="pedidoApp.openTrackerModal()" title="Consultar status do seu pedido">
+        <div class="header-actions">
+            <button type="button" class="btn-header-orders" onclick="pedidoApp.openTrackerModal()" title="Consultar status do seu pedido">
                 <i class="fa-solid fa-receipt"></i>
                 <span>Meus Pedidos</span>
             </button>
-            <div class="header-status-badge">
-                <span class="status-dot"></span>
-                <span>Aberto agora</span>
+            <div class="store-badge">
+                <span class="dot"></span>
+                <span>Aberto</span>
             </div>
         </div>
     </div>
 </header>
 
 <!-- =========================================================
-     SEARCH & CATEGORIES
+     BUSCA & NAVEGAÇÃO DE CATEGORIAS
      ========================================================= -->
-<div class="search-container">
-    <div class="search-bar">
+<div class="search-section">
+    <div class="search-field">
         <i class="fa-solid fa-magnifying-glass search-icon"></i>
-        <input type="text" id="search-input" class="search-input" placeholder="Buscar espetos, lanches, bebidas..." oninput="pedidoApp.filterSearch(this.value)">
-        <button type="button" id="search-clear-btn" class="search-clear" onclick="pedidoApp.clearSearch()" aria-label="Limpar busca">
+        <input type="text" id="search-input" placeholder="Buscar espetinhos, lanches, bebidas..." oninput="pedidoApp.filterSearch(this.value)">
+        <button type="button" id="search-clear-btn" class="search-clear-btn" onclick="pedidoApp.clearSearch()" aria-label="Limpar busca">
             <i class="fa-solid fa-xmark"></i>
         </button>
     </div>
 </div>
 
-<nav class="categories-wrapper">
-    <div class="categories-nav" id="categories-nav">
-        <!-- Injetado pelo JS -->
+<nav class="categories-nav-wrapper">
+    <div class="categories-nav-container" id="categories-nav">
+        <!-- Preenchido dinamicamente pelo JS -->
     </div>
 </nav>
 
 <!-- =========================================================
-     MAIN — CARDÁPIO
+     CATÁLOGO DE PRODUTOS
      ========================================================= -->
-<main class="menu-main" id="menu-main">
-    <div class="products-section-header">
-        <h2 class="section-title" id="current-category-title">
+<main class="catalog-container">
+    <div class="catalog-header">
+        <h2 class="catalog-title" id="current-category-title">
             <i class="fa-solid fa-utensils"></i>
             <span>Todos os Itens</span>
         </h2>
-        <span class="section-counter" id="products-counter">0 itens</span>
+        <span class="catalog-counter" id="products-counter">0 itens</span>
     </div>
 
-    <!-- Grid de Produtos -->
     <div class="products-grid" id="products-grid">
-        <!-- Injetado pelo JS -->
+        <!-- Preenchido dinamicamente pelo JS -->
     </div>
 </main>
 
 <!-- =========================================================
-     CART BAR FLUTUANTE
+     BARRA FLUTUANTE DA SACOLA
      ========================================================= -->
-<div class="cart-bar hidden" id="cart-bar" onclick="pedidoApp.toggleCart()">
+<div class="cart-floating-bar hidden" id="cart-bar" onclick="pedidoApp.toggleCart()">
     <div class="cart-bar-left">
-        <div class="cart-bar-icon">
+        <div class="cart-bar-icon-wrap">
             <i class="fa-solid fa-bag-shopping"></i>
-            <span class="cart-badge" id="cart-badge">0</span>
+            <span class="cart-bar-badge" id="cart-badge">0</span>
         </div>
         <span class="cart-bar-label">Ver minha sacola</span>
     </div>
     <div class="cart-bar-right">
         <span class="cart-bar-total" id="cart-total-bar">R$ 0,00</span>
-        <i class="fa-solid fa-chevron-up cart-bar-arrow"></i>
+        <i class="fa-solid fa-chevron-up"></i>
     </div>
 </div>
 
 <!-- =========================================================
-     MODAL CARRINHO (Bottom Sheet)
+     MODAL DA SACOLA (CARRINHO)
      ========================================================= -->
-<div class="sheet-overlay" id="cart-modal" onclick="if(event.target===this) pedidoApp.toggleCart()">
-    <div class="bottom-sheet">
-        <div class="sheet-handle"></div>
+<div class="modal-overlay" id="cart-modal" onclick="if(event.target===this) pedidoApp.toggleCart()">
+    <div class="modal-sheet">
+        <div class="sheet-handle-bar"></div>
 
-        <div class="sheet-header">
+        <div class="modal-sheet-header">
             <h2 class="sheet-title">Sua Sacola</h2>
-            <button class="btn-icon" onclick="pedidoApp.toggleCart()" aria-label="Fechar">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-
-        <div class="sheet-body" id="cart-items">
-            <div class="empty-cart">
-                <i class="fa-solid fa-bag-shopping empty-cart-icon"></i>
-                <p>Sua sacola está vazia</p>
-                <span>Escolha itens deliciosos do nosso cardápio!</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button type="button" class="btn-danger-ghost" id="btn-clear-cart" onclick="pedidoApp.clearEntireCart()" style="display:none;">
+                    <i class="fa-regular fa-trash-can"></i> Limpar
+                </button>
+                <button class="btn-icon" onclick="pedidoApp.toggleCart()" aria-label="Fechar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
         </div>
 
-        <div class="sheet-footer" id="cart-footer" style="display:none">
-            <div class="cart-summary">
-                <div class="summary-row">
+        <div class="modal-sheet-body" id="cart-items">
+            <div class="cart-empty-view">
+                <i class="fa-solid fa-bag-shopping cart-empty-icon"></i>
+                <p style="font-weight: 700; font-size: 1.05rem; color: var(--text-secondary);">Sua sacola está vazia</p>
+                <span style="font-size: 0.88rem; color: var(--text-muted);">Adicione itens saborosos do nosso cardápio!</span>
+            </div>
+        </div>
+
+        <div class="modal-sheet-footer" id="cart-footer" style="display:none">
+            <div class="cart-summary-breakdown">
+                <div class="summary-line">
                     <span>Subtotal</span>
                     <span id="cart-subtotal">R$ 0,00</span>
                 </div>
-                <div class="summary-row summary-total">
+                <div class="summary-line total">
                     <span>Total do Pedido</span>
                     <strong id="cart-total-modal">R$ 0,00</strong>
                 </div>
             </div>
-            <button class="btn-checkout" id="btn-proceed-checkout" onclick="pedidoApp.openCheckoutForm()">
-                <span>Avançar para Pagamento</span>
+            <button class="btn btn-primary" style="width:100%; justify-content:space-between;" id="btn-proceed-checkout" onclick="pedidoApp.openCheckoutForm()">
+                <span>Avançar para Identificação</span>
                 <i class="fa-solid fa-arrow-right"></i>
             </button>
         </div>
@@ -162,89 +161,90 @@
 </div>
 
 <!-- =========================================================
-     MODAL PERSONALIZAR ITEM
+     MODAL DE PERSONALIZAÇÃO DO ITEM
      ========================================================= -->
-<div class="sheet-overlay" id="modal-customize">
-    <div class="bottom-sheet customize-sheet">
-        <div class="sheet-handle"></div>
+<div class="modal-overlay" id="modal-customize">
+    <div class="modal-sheet">
+        <div class="sheet-handle-bar"></div>
 
-        <div class="sheet-header">
-            <div class="customize-header-wrap">
+        <div class="modal-sheet-header">
+            <div class="customize-header-info">
                 <h2 class="sheet-title" id="customize-product-name">Personalizar</h2>
-                <p class="customize-product-price" id="customize-product-price">R$ 0,00</p>
+                <div class="customize-price-tag" id="customize-product-price">R$ 0,00</div>
             </div>
             <button class="btn-icon" onclick="pedidoApp.closeModal('modal-customize')" aria-label="Fechar">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
 
-        <div class="sheet-body customize-body">
+        <div class="modal-sheet-body">
             <input type="hidden" id="customize-product-id">
 
-            <!-- Ponto da Carne -->
-            <div id="customize-doneness-container" class="customize-section">
-                <div class="section-label">
-                    <i class="fa-solid fa-fire"></i>
-                    Ponto da Carne
+            <div class="customize-groups-wrap">
+                <!-- Ponto da Carne -->
+                <div id="customize-doneness-container" class="customize-group">
+                    <div class="group-title">
+                        <i class="fa-solid fa-fire"></i>
+                        Ponto da Carne
+                    </div>
+                    <div id="customize-variations-doneness-list" class="chips-selector"></div>
                 </div>
-                <div id="customize-variations-doneness-list" class="var-pills"></div>
-            </div>
 
-            <!-- Ingredientes (apenas lanches) -->
-            <div id="customize-ingredients-container" class="customize-section" style="display:none">
-                <div class="section-label">
-                    <i class="fa-solid fa-leaf"></i>
-                    Remover Ingredientes
+                <!-- Remoção de Ingredientes (Lanches) -->
+                <div id="customize-ingredients-container" class="customize-group" style="display:none">
+                    <div class="group-title">
+                        <i class="fa-solid fa-leaf"></i>
+                        Remover Ingredientes
+                    </div>
+                    <div id="customize-variations-ingredients-list" class="chips-selector"></div>
                 </div>
-                <div id="customize-variations-ingredients-list" class="var-pills"></div>
-            </div>
 
-            <!-- Adicionais (apenas lanches) -->
-            <div id="customize-addons-container" class="customize-section" style="display:none">
-                <div class="section-label">
-                    <i class="fa-solid fa-plus-circle"></i>
-                    Adicionais
+                <!-- Adicionais -->
+                <div id="customize-addons-container" class="customize-group" style="display:none">
+                    <div class="group-title">
+                        <i class="fa-solid fa-plus-circle"></i>
+                        Adicionais
+                    </div>
+                    <div class="addon-picker-row">
+                        <select id="customize-addon-select" class="form-select"></select>
+                        <button type="button" class="btn btn-secondary" onclick="pedidoApp.addSelectedAddon()" style="padding:0 16px;">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                    <div id="customize-addons-list" class="addons-active-list"></div>
                 </div>
-                <div class="addon-picker">
-                    <select id="customize-addon-select" class="addon-select">
-                    </select>
-                    <button type="button" class="btn-addon-add" onclick="pedidoApp.addSelectedAddon()">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
-                </div>
-                <div id="customize-addons-list" class="addons-list"></div>
-            </div>
 
-            <!-- Extras (embalar para viagem, etc) -->
-            <div id="customize-extras-container" class="customize-section" style="display:none">
-                <div class="section-label">
-                    <i class="fa-solid fa-box"></i>
-                    Opções Extras
+                <!-- Opções Extras -->
+                <div id="customize-extras-container" class="customize-group" style="display:none">
+                    <div class="group-title">
+                        <i class="fa-solid fa-box"></i>
+                        Opções Extras
+                    </div>
+                    <div id="customize-variations-extras-list" class="chips-selector"></div>
                 </div>
-                <div id="customize-variations-extras-list" class="var-pills"></div>
             </div>
         </div>
 
-        <div class="sheet-footer customize-footer">
-            <div class="customize-qty-row">
-                <div class="qty-stepper">
-                    <button type="button" class="qty-step-btn" onclick="pedidoApp.updateCustomizeQty(-1)" aria-label="Diminuir">
+        <div class="modal-sheet-footer">
+            <div class="customize-summary-bar">
+                <div class="stepper-widget">
+                    <button type="button" class="stepper-btn" onclick="pedidoApp.updateCustomizeQty(-1)" aria-label="Diminuir">
                         <i class="fa-solid fa-minus"></i>
                     </button>
-                    <span class="qty-step-value" id="customize-qty">1</span>
-                    <button type="button" class="qty-step-btn" onclick="pedidoApp.updateCustomizeQty(1)" aria-label="Aumentar">
+                    <span class="stepper-value" id="customize-qty">1</span>
+                    <button type="button" class="stepper-btn" onclick="pedidoApp.updateCustomizeQty(1)" aria-label="Aumentar">
                         <i class="fa-solid fa-plus"></i>
                     </button>
                 </div>
-                <div class="customize-total-label">
+                <div class="customize-total-text">
                     Total: <strong id="customize-total">R$ 0,00</strong>
                 </div>
             </div>
-            <div class="customize-actions">
-                <button type="button" class="btn-ghost" onclick="pedidoApp.closeModal('modal-customize')">Cancelar</button>
-                <button type="button" class="btn-primary-solid" onclick="pedidoApp.confirmCustomization()">
+            <div style="display:flex; gap:10px;">
+                <button type="button" class="btn btn-ghost" style="flex:1;" onclick="pedidoApp.closeModal('modal-customize')">Cancelar</button>
+                <button type="button" class="btn btn-primary" style="flex:2;" onclick="pedidoApp.confirmCustomization()">
                     <i class="fa-solid fa-bag-shopping"></i>
-                    Adicionar à sacola
+                    Adicionar à Sacola
                 </button>
             </div>
         </div>
@@ -252,15 +252,15 @@
 </div>
 
 <!-- =========================================================
-     MODAL ACOMPANHAR PEDIDO / MEUS PEDIDOS
+     MODAL DE ACOMPANHAMENTO DO PEDIDO (TRACKER)
      ========================================================= -->
-<div class="sheet-overlay" id="tracker-modal" onclick="if(event.target===this) pedidoApp.closeModal('tracker-modal')">
-    <div class="bottom-sheet tracker-modal-sheet">
-        <div class="sheet-handle"></div>
+<div class="modal-overlay" id="tracker-modal" onclick="if(event.target===this) pedidoApp.closeModal('tracker-modal')">
+    <div class="modal-sheet">
+        <div class="sheet-handle-bar"></div>
 
-        <div class="sheet-header">
+        <div class="modal-sheet-header">
             <h2 class="sheet-title">
-                <i class="fa-solid fa-receipt" style="color:var(--primary); font-size:1.1rem; margin-right:6px;"></i>
+                <i class="fa-solid fa-receipt" style="color:var(--brand-primary); margin-right:6px;"></i>
                 Acompanhar Pedido
             </h2>
             <button class="btn-icon" onclick="pedidoApp.closeModal('tracker-modal')" aria-label="Fechar">
@@ -268,30 +268,29 @@
             </button>
         </div>
 
-        <div class="sheet-body">
-            <!-- Campo de Busca -->
-            <div class="tracker-search-box">
-                <input type="text" id="tracker-search-input" class="tracker-input"
-                    placeholder="Digite seu WhatsApp ou Código do Pedido..."
+        <div class="modal-sheet-body">
+            <!-- Busca por WhatsApp ou Código -->
+            <div class="tracker-search-wrap">
+                <input type="text" id="tracker-search-input" class="form-input"
+                    placeholder="Digite seu WhatsApp ou Código..."
                     onkeyup="if(event.key==='Enter') pedidoApp.searchOrders(this.value)">
-                <button type="button" class="btn-tracker-search" onclick="pedidoApp.searchOrders(document.getElementById('tracker-search-input').value)">
+                <button type="button" class="btn btn-primary" onclick="pedidoApp.searchOrders(document.getElementById('tracker-search-input').value)">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    Buscar
                 </button>
             </div>
 
-            <!-- Chips de Pedidos Recentes salvos localmente -->
-            <div id="recent-orders-container" class="recent-orders-bar" style="display:none;">
-                <span class="recent-orders-title">Seus Pedidos Recentes:</span>
-                <div id="recent-orders-chips" class="recent-orders-chips"></div>
+            <!-- Chips de Pedidos Recentes -->
+            <div id="recent-orders-container" class="recent-chips-bar" style="display:none;">
+                <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Pedidos Recentes:</span>
+                <div id="recent-orders-chips" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;"></div>
             </div>
 
-            <!-- Resultado / Status do Pedido -->
+            <!-- Card de Status em Tempo Real -->
             <div id="tracker-result-container">
-                <div style="text-align: center; padding: 36px 16px; color: var(--text-muted);">
-                    <i class="fa-solid fa-clock-rotate-left" style="font-size: 2.4rem; margin-bottom: 12px; opacity: 0.5;"></i>
-                    <p style="font-weight: 700; font-size: 1rem; color: var(--text-secondary);">Consulte seu pedido em tempo real</p>
-                    <span style="font-size: 0.85rem;">Digite o WhatsApp informado na compra ou o número do pedido acima.</span>
+                <div style="text-align:center; padding:36px 16px; color:var(--text-muted);">
+                    <i class="fa-solid fa-clock-rotate-left" style="font-size:2.4rem; margin-bottom:12px; opacity:0.5;"></i>
+                    <p style="font-weight:700; font-size:1rem; color:var(--text-secondary);">Consulte seu pedido em tempo real</p>
+                    <span style="font-size:0.85rem;">Digite o WhatsApp informado no pedido para ver o andamento na cozinha.</span>
                 </div>
             </div>
         </div>
@@ -299,213 +298,225 @@
 </div>
 
 <!-- =========================================================
-     TELA CHECKOUT (Full Screen)
+     TELA DE CHECKOUT POR ETAPAS (FULLSCREEN)
      ========================================================= -->
-<div class="fullscreen-overlay" id="checkout-modal">
-    <div class="fullscreen-inner">
+<div class="checkout-fullscreen" id="checkout-modal">
+    <div class="checkout-header">
+        <button class="btn-icon" onclick="pedidoApp.closeCheckoutForm()" aria-label="Voltar">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <h1 class="sheet-title" id="checkout-header-title">Finalizar Pedido</h1>
+        <div style="width:38px"></div>
+    </div>
 
-        <!-- Header do Checkout -->
-        <div class="fs-header">
-            <button class="btn-back" onclick="pedidoApp.closeCheckoutForm()" aria-label="Voltar">
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
-            <h1 class="fs-title">Finalizar Pedido</h1>
-            <div style="width:40px"></div>
+    <div class="checkout-body" id="checkout-form-wrapper">
+
+        <!-- Barra de Progresso das Etapas -->
+        <div class="checkout-progress-bar">
+            <div class="progress-step-pill active" id="prog-step-1"></div>
+            <div class="progress-step-pill" id="prog-step-2"></div>
         </div>
 
-        <div class="fs-body" id="checkout-form-wrapper">
-            <form id="checkout-form" onsubmit="pedidoApp.processCheckout(event)" novalidate>
+        <form id="checkout-form" novalidate>
 
-                <!-- 1. Dados do cliente -->
-                <div class="checkout-card">
-                    <div class="checkout-card-title">
+            <!-- ==========================================
+                 ETAPA 1: DADOS & IDENTIFICAÇÃO DO CLIENTE
+                 ========================================== -->
+            <div id="checkout-step-1-content">
+                <div class="checkout-section-card">
+                    <div class="checkout-section-title">
                         <i class="fa-solid fa-user"></i>
                         <span>1. Seus Dados</span>
                     </div>
+
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label" for="client-name">Nome *</label>
+                            <label class="form-label" for="client-name">Nome <span class="req">*</span></label>
                             <input class="form-input" type="text" id="client-name" required placeholder="Seu nome">
                         </div>
                         <div class="form-group">
-                            <label class="form-label" for="client-lastname">Sobrenome *</label>
+                            <label class="form-label" for="client-lastname">Sobrenome <span class="req">*</span></label>
                             <input class="form-input" type="text" id="client-lastname" required placeholder="Seu sobrenome">
                         </div>
                     </div>
+
                     <div class="form-group">
-                        <label class="form-label" for="client-phone">WhatsApp *</label>
+                        <label class="form-label" for="client-phone">WhatsApp <span class="req">*</span></label>
                         <input class="form-input" type="tel" id="client-phone" required
                             placeholder="(00) 00000-0000" onkeyup="pedidoApp.maskPhone(this)">
                     </div>
+
                     <div class="form-group">
-                        <label class="form-label" for="client-obs">Observações <span class="label-opt">(opcional)</span></label>
-                        <textarea class="form-input form-textarea" id="client-obs"
-                            placeholder="Ex: Ponto bem passado, retirar no balcão..."></textarea>
+                        <label class="form-label" for="delivery-type">Forma de Retirada</label>
+                        <input class="form-input" type="text" value="Retirada no Balcão (Grátis)" disabled style="background-color:var(--bg-elevated); color:var(--text-secondary); cursor:not-allowed;">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="client-obs">Observações do Pedido <span class="opt">(opcional)</span></label>
+                        <textarea class="form-textarea" id="client-obs" placeholder="Ex: Ponto da carne bem passado, embalar para presente..."></textarea>
                     </div>
                 </div>
 
-                <!-- 2. Resumo do pedido -->
-                <div class="checkout-card" id="checkout-order-summary">
-                    <div class="checkout-card-title">
+                <div style="margin-top: 16px;">
+                    <button type="button" class="btn btn-primary" style="width:100%; justify-content:space-between;" onclick="pedidoApp.proceedToPaymentStep()">
+                        <span>Continuar para Pagamento</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 ETAPA 2: RESUMO & FORMA DE PAGAMENTO
+                 ========================================== -->
+            <div id="checkout-step-2-content" style="display:none;">
+                
+                <!-- Recibo do Pedido -->
+                <div class="checkout-section-card">
+                    <div class="checkout-section-title">
                         <i class="fa-solid fa-receipt"></i>
-                        <span>2. Resumo do Pedido</span>
+                        <span>Resumo do Pedido</span>
                     </div>
-                    <div id="checkout-items-list" class="checkout-items-list"></div>
-                    <div class="checkout-totals">
-                        <div class="checkout-total-row">
+                    <div id="checkout-items-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    <div class="cart-summary-breakdown" style="margin-top:10px; margin-bottom:0;">
+                        <div class="summary-line total">
                             <span>Total</span>
                             <strong id="checkout-total-display">R$ 0,00</strong>
                         </div>
                     </div>
                 </div>
 
-                <!-- 3. Forma de pagamento -->
-                <div class="checkout-card">
-                    <div class="checkout-card-title">
-                        <i class="fa-solid fa-credit-card"></i>
-                        <span>3. Forma de Pagamento</span>
+                <!-- Seletor de Pagamento -->
+                <div class="checkout-section-card">
+                    <div class="checkout-section-title">
+                        <i class="fa-solid fa-wallet"></i>
+                        <span>Escolha a Forma de Pagamento</span>
                     </div>
-                    <div id="payment-method-selector" class="payment-methods-grid">
-                        <button type="button" class="payment-method-btn" id="btn-pm-pix"
-                            onclick="pedidoApp.selectPaymentMethod('bankTransfer')">
-                            <span class="pm-badge pm-badge-pix">Mais Rápido</span>
-                            <div class="pm-icon pix-icon">
+
+                    <div class="payment-methods-grid">
+                        <div class="payment-method-card pix" id="btn-pm-pix" onclick="pedidoApp.selectPaymentMethod('bankTransfer')">
+                            <span class="badge-tag-fast">Rápido</span>
+                            <div class="method-icon-wrap">
                                 <i class="fa-brands fa-pix"></i>
                             </div>
-                            <span class="pm-label">PIX</span>
-                            <span class="pm-sub">Aprovação imediata</span>
-                        </button>
-                        <button type="button" class="payment-method-btn" id="btn-pm-credit"
-                            onclick="pedidoApp.selectPaymentMethod('creditCard')">
-                            <div class="pm-icon">
+                            <span class="method-name">PIX</span>
+                            <span class="method-caption">Imediato</span>
+                        </div>
+
+                        <div class="payment-method-card" id="btn-pm-credit" onclick="pedidoApp.selectPaymentMethod('creditCard')">
+                            <div class="method-icon-wrap">
                                 <i class="fa-solid fa-credit-card"></i>
                             </div>
-                            <span class="pm-label">Crédito</span>
-                            <span class="pm-sub">Até 12x</span>
-                        </button>
-                        <button type="button" class="payment-method-btn" id="btn-pm-debit"
-                            onclick="pedidoApp.selectPaymentMethod('debitCard')">
-                            <div class="pm-icon">
+                            <span class="method-name">Crédito</span>
+                            <span class="method-caption">Até 12x</span>
+                        </div>
+
+                        <div class="payment-method-card" id="btn-pm-debit" onclick="pedidoApp.selectPaymentMethod('debitCard')">
+                            <div class="method-icon-wrap">
                                 <i class="fa-solid fa-money-check-dollar"></i>
                             </div>
-                            <span class="pm-label">Débito</span>
-                            <span class="pm-sub">À vista</span>
+                            <span class="method-name">Débito</span>
+                            <span class="method-caption">À vista</span>
+                        </div>
+                    </div>
+
+                    <!-- Mensagem explicativa de Débito (todas as bandeiras) -->
+                    <div id="debit-info-banner" class="payment-debit-info-banner" style="display:none;">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Aceita cartões de <strong>Débito</strong> de qualquer banco (Visa, Mastercard, Elo, Nubank, Inter, Caixa, Itaú, etc.).</span>
+                    </div>
+
+                    <!-- Formulário Universal de Cartão de Crédito / Débito (Brick) -->
+                    <div id="wallet_container" style="display:none; margin-top: 10px;"></div>
+
+                    <!-- Ação do PIX -->
+                    <div id="pix-action-container" style="display:none; margin-top: 10px;">
+                        <button type="button" id="btn-confirm-pix" class="btn btn-primary" style="width:100%; background-color:var(--pix-accent); border-color:var(--pix-accent);" onclick="pedidoApp.processPixPayment()">
+                            <i class="fa-brands fa-pix"></i>
+                            Gerar QR Code PIX
                         </button>
                     </div>
 
-                    <!-- Container do Formulário de Cartão de Crédito / Débito (Brick) -->
-                    <div id="wallet_container" style="display:none; margin-top: 14px;"></div>
-
-                    <!-- Container do botão PIX -->
-                    <div id="pix-action-container" style="display:none; margin-top: 14px;">
-                        <div class="pix-confirm-box">
-                            <div class="pix-confirm-info">
-                                <i class="fa-brands fa-pix" style="color:var(--pix-color); font-size:1.8rem;"></i>
-                                <div>
-                                    <p style="font-weight:700; margin:0; font-size: 1rem;">Pagamento via PIX</p>
-                                    <p style="color:var(--text-muted); font-size:0.85rem; margin-top:2px;">O QR Code e chave Copia e Cola serão gerados a seguir</p>
-                                </div>
-                            </div>
-                            <button type="button" id="btn-confirm-pix" class="btn-pix-confirm"
-                                onclick="pedidoApp.processPixPayment()">
-                                <i class="fa-brands fa-pix"></i>
-                                Gerar QR Code PIX
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Botão fallback (manual) -->
-                    <button type="submit" class="btn-checkout-pay" id="btn-pay" style="display:none; margin-top:16px;">
+                    <!-- Botão Fallback de Envio Manual -->
+                    <button type="submit" class="btn btn-primary" id="btn-pay" style="display:none; width:100%; margin-top:10px;">
                         <i class="fa-solid fa-lock"></i>
-                        Confirmar pedido
+                        Confirmar Pedido
                     </button>
                 </div>
 
-                <div class="mp-security-badge">
-                    <i class="fa-solid fa-shield-halved"></i>
-                    <span>Pagamento 100% criptografado e seguro via Mercado Pago</span>
+                <div style="display:flex; gap:10px; margin-top:14px;">
+                    <button type="button" class="btn btn-secondary" style="flex:1;" onclick="pedidoApp.backToDetailsStep()">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        Voltar aos Dados
+                    </button>
                 </div>
-            </form>
+
+                <div style="text-align:center; color:var(--text-muted); font-size:0.78rem; padding:10px 0;">
+                    <i class="fa-solid fa-shield-halved" style="color:var(--success); margin-right:4px;"></i>
+                    Ambiente criptografado e seguro com Mercado Pago
+                </div>
+
+            </div>
+
+        </form>
+    </div>
+
+    <!-- =========================================================
+         TELA DE PAGAMENTO PIX (APÓS GERAR QR CODE)
+         ========================================================= -->
+    <div class="checkout-body" id="pix-container" style="display:none;">
+
+        <!-- Estado 1: Aguardando Pagamento -->
+        <div id="pix-waiting-state" class="pix-flow-screen">
+            <div style="text-align:center;">
+                <h2 style="font-size:1.4rem; font-weight:800; color:var(--text-main);">Pague com PIX</h2>
+                <p style="font-size:0.88rem; color:var(--text-secondary); margin-top:4px;">Escaneie o QR Code ou copie a chave abaixo</p>
+            </div>
+
+            <div class="pix-qr-container">
+                <img id="pix-qr-img" src="" alt="QR Code PIX" class="pix-qr-image">
+
+                <div class="pix-code-row">
+                    <input type="text" id="pix-copia-cola" class="pix-input-code" readonly>
+                    <button type="button" class="btn btn-primary" id="btn-copy-pix" onclick="pedidoApp.copyPixCode()" style="background-color:var(--pix-accent); border-color:var(--pix-accent); padding:10px 14px; font-size:0.85rem;">
+                        <i class="fa-regular fa-copy"></i>
+                        Copiar
+                    </button>
+                </div>
+
+                <div class="status-live-pulse">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    <span>Aguardando confirmação do banco...</span>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-secondary" onclick="pedidoApp.closeCheckoutForm()">
+                <i class="fa-solid fa-arrow-left"></i>
+                Voltar ao Cardápio
+            </button>
         </div>
 
-        <!-- =========================================================
-             TELA PIX (substitui o formulário após gerar PIX)
-             ========================================================= -->
-        <div class="pix-screen" id="pix-container" style="display:none">
+        <!-- Estado 2: Pagamento Aprovado com Sucesso -->
+        <div id="pix-approved-state" style="display:none; text-align:center; padding:20px 0;" class="pix-flow-screen">
+            <div style="width:68px; height:68px; background-color:var(--success-light); color:var(--success); font-size:2rem; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h2 style="font-size:1.5rem; font-weight:800; color:var(--success); margin-bottom:6px;">Pagamento Confirmado!</h2>
+            <p style="color:var(--text-secondary); font-size:0.92rem; margin-bottom:20px;">
+                Seu pedido foi aprovado e <strong>enviado ao PDV / Cozinha</strong> para preparo imediato.
+            </p>
 
-            <!-- Estado 1: Aguardando Pagamento -->
-            <div id="pix-waiting-state">
-                <div class="pix-success-header">
-                    <div class="pix-success-icon">
-                        <i class="fa-brands fa-pix"></i>
-                    </div>
-                    <h2 class="pix-success-title">Pague com PIX</h2>
-                    <p class="pix-success-sub">Escaneie o QR Code ou copie a chave para confirmar seu pedido</p>
-                </div>
+            <div id="pix-approved-summary" style="background-color:var(--bg-card); border:1px solid var(--border-medium); border-radius:var(--r-lg); padding:16px; text-align:left; margin-bottom:20px;"></div>
 
-                <div class="pix-card">
-                    <div class="pix-qr-wrap">
-                        <img id="pix-qr-img" src="" alt="QR Code PIX" class="pix-qr-img">
-                    </div>
-
-                    <div class="pix-divider">
-                        <span>ou copie o código abaixo</span>
-                    </div>
-
-                    <div class="pix-copy-section">
-                        <label class="pix-copy-label">PIX Copia e Cola</label>
-                        <div class="pix-copy-row">
-                            <input type="text" id="pix-copia-cola" class="pix-code-input" readonly>
-                            <button type="button" class="btn-copy-pix" id="btn-copy-pix"
-                                onclick="pedidoApp.copyPixCode()">
-                                <i class="fa-regular fa-copy"></i>
-                                Copiar
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="pix-status-indicator">
-                        <i class="fa-solid fa-spinner fa-spin"></i>
-                        <span>Aguardando confirmação do banco...</span>
-                    </div>
-
-                    <div class="pix-info-box">
-                        <i class="fa-solid fa-circle-check"></i>
-                        <p>Assim que o pagamento for concluído no app do seu banco, esta tela atualizará automaticamente!</p>
-                    </div>
-                </div>
-
-                <button type="button" class="btn-pix-close" onclick="pedidoApp.closeCheckoutForm()">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    Voltar ao Cardápio
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button type="button" class="btn btn-primary" onclick="pedidoApp.openTrackerFromSuccess()">
+                    <i class="fa-solid fa-receipt"></i>
+                    Acompanhar Status do Pedido
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="pedidoApp.closeCheckoutForm()">
+                    <i class="fa-solid fa-utensils"></i>
+                    Fazer Novo Pedido
                 </button>
             </div>
-
-            <!-- Estado 2: Pagamento Aprovado com Sucesso -->
-            <div id="pix-approved-state" style="display: none; text-align: center; padding: 20px 10px;">
-                <div class="pix-success-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981; width: 72px; height: 72px; font-size: 2rem; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                    <i class="fa-solid fa-check"></i>
-                </div>
-                <h2 style="font-size: 1.6rem; font-weight: 800; color: #10b981; margin-bottom: 8px;">Pagamento Confirmado!</h2>
-                <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 24px;">
-                    Seu pedido foi aprovado e <strong>enviado ao PDV / Cozinha</strong> para preparo imediato.
-                </p>
-
-                <div id="pix-approved-summary" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: left; margin-bottom: 24px;">
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button type="button" id="btn-view-status-now" class="btn-primary-solid" style="width: 100%;" onclick="pedidoApp.openTrackerFromSuccess()">
-                        <i class="fa-solid fa-receipt"></i>
-                        Acompanhar Status do Pedido
-                    </button>
-                    <button type="button" class="btn-ghost" style="width: 100%;" onclick="pedidoApp.closeCheckoutForm()">
-                        <i class="fa-solid fa-utensils"></i>
-                        Fazer Novo Pedido
-                    </button>
-                </div>
-            </div>
-
         </div>
 
     </div>
