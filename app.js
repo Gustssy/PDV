@@ -526,6 +526,7 @@ const pdvApp = (function () {
             const { data, error } = await supabase
                 .from('web_orders')
                 .select('*')
+                .neq('status', 'waiting_payment')
                 .order('created_at', { ascending: false })
                 .limit(200);
             if (error) throw error;
