@@ -1480,14 +1480,18 @@ const pedidoApp = (function () {
             step = 3;
             progressWidth = '75%';
             statusBadgeText = 'Pronto p/ Retirada';
-        } else if (currentStatus === 'closed' || currentStatus === 'delivered') {
+        } else if (currentStatus === 'closed' || currentStatus === 'delivered' || currentStatus === 'done') {
             step = 4;
             progressWidth = '100%';
             statusBadgeText = 'Entregue';
-        } else if (currentStatus === 'canceled') {
+        } else if (currentStatus === 'cancelled' || currentStatus === 'canceled') {
             step = 0;
             progressWidth = '0%';
             statusBadgeText = 'Cancelado';
+        } else if (currentStatus === 'cancellation_requested') {
+            step = 1;
+            progressWidth = '15%';
+            statusBadgeText = 'Cancelamento Solicitado';
         }
 
         const dateObj = new Date(order.created_at || Date.now());
@@ -1578,8 +1582,45 @@ const pedidoApp = (function () {
                     <i class="fa-solid fa-circle-dot fa-beat"></i>
                     <span>Atualizando em tempo real com a cozinha</span>
                 </div>
+                
+                ${(currentStatus !== 'cancelled' && currentStatus !== 'canceled' && currentStatus !== 'closed' && currentStatus !== 'delivered' && currentStatus !== 'done' && currentStatus !== 'cancellation_requested') ? `
+                    <button onclick="pedidoApp.requestCancellation('${order.id}', ${isPaid})" style="margin-top:16px; width:100%; padding:12px; border-radius:8px; border:1px solid rgba(239, 68, 68, 0.3); background:transparent; color:#ef4444; font-weight:700; cursor:pointer;">
+                        <i class="fa-solid fa-ban"></i> Solicitar Cancelamento
+                    </button>
+                ` : ''}
             </div>
         `;
+    }
+
+    async function requestCancellation(orderId, isPaid) {
+        if (!confirm('Tem certeza que deseja cancelar este pedido?')) return;
+        
+        showLoading();
+        try {
+            const client = getSupabaseClient();
+            if (!client) throw new Error('Falha de conexão.');
+
+            if (!isPaid) {
+                // Cancelamento imediato
+                const { data: order } = await client.from('web_orders').select('*').eq('id', orderId).single();
+                if (order && order.items) {
+                    const itemsToRestore = order.items.map(it => ({ id: it.productId || it.id, qty: it.qty }));
+                    await restoreStockAtomically(itemsToRestore);
+                }
+                await client.from('web_orders').update({ status: 'cancelled' }).eq('id', orderId);
+                alert('Pedido cancelado com sucesso!');
+            } else {
+                // Solicitar aprovação
+                await client.from('web_orders').update({ status: 'cancellation_requested' }).eq('id', orderId);
+                alert('Solicitação de cancelamento enviada ao restaurante.');
+            }
+        } catch (err) {
+            console.error('Erro ao cancelar:', err);
+            alert('Não foi possível solicitar o cancelamento agora. ' + err.message);
+        } finally {
+            hideLoading();
+            searchOrder(); // Atualiza a tela de rastreio
+        }
     }
 
     function setupRealtimeOrderTracker(orderId) {
@@ -1633,6 +1674,7 @@ const pedidoApp = (function () {
         proceedToPaymentStep,
         backToDetailsStep,
         maskPhone,
+        requestCancellation,
         selectPaymentMethod,
         processPixPayment,
         copyPixCode,

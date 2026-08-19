@@ -106,23 +106,6 @@ app.post("/process_payment", paymentLimiter, async (req, res) => {
 
         console.log("Resposta Mercado Pago:", response.status, response.id);
 
-        const comandaItems = formatCartToComandaItems(cart);
-        const newComanda = {
-            id: String(response.id),
-            status: 'open',
-            client: clientData.fullName + ' - ' + clientData.phone,
-            date: new Date().toISOString(),
-            items: comandaItems,
-            total: totalAmount,
-            paid: response.status === 'approved',
-            ispageless: true,
-            paymentmethod: 'Mercado Pago (Site)'
-        };
-
-        const { error: dbError } = await supabase.from('comandas').insert([newComanda]);
-        if (dbError) console.error("Erro ao salvar comanda:", dbError);
-        else console.log("Comanda criada com sucesso no Supabase.");
-
         return res.json({
             status: response.status,
             status_detail: response.status_detail,
@@ -142,11 +125,32 @@ async function finalizePaidOrder(paymentId) {
         const payment = new Payment(mpClient);
         const mpPayment = await payment.get({ id: String(paymentId) });
 
-        if (!mpPayment || mpPayment.status !== 'approved') {
-            return { approved: false, status: mpPayment?.status || 'unknown' };
+        if (!mpPayment) {
+            return { approved: false, status: 'unknown' };
         }
 
         const mpId = String(mpPayment.id);
+
+        if (mpPayment.status === 'cancelled') {
+            console.log(`❌ Pagamento ${mpId} expirou ou foi cancelado no MP.`);
+            const { data: webOrder } = await supabase.from("web_orders").select("*").eq("id", mpId).maybeSingle();
+            
+            if (webOrder && webOrder.status !== 'cancelled' && webOrder.status !== 'canceled') {
+                await supabase.from("web_orders").update({ status: 'cancelled', payment_status: 'failed' }).eq("id", mpId);
+                
+                // Devolve estoque
+                const itemsToRestore = (webOrder.items || []).map(it => ({ id: it.productId || it.id, qty: it.qty }));
+                if (itemsToRestore.length > 0) {
+                    await supabase.rpc('restore_stock_batch', { p_items: itemsToRestore }).catch(err => console.error("Erro ao devolver estoque", err));
+                }
+            }
+            return { approved: false, status: 'cancelled' };
+        }
+
+        if (mpPayment.status !== 'approved') {
+            return { approved: false, status: mpPayment.status };
+        }
+
         console.log(`✅ Pagamento ${mpId} confirmado como APROVADO.`);
 
         // 1. Busca dados do pedido em web_orders
@@ -158,37 +162,11 @@ async function finalizePaidOrder(paymentId) {
 
         if (findErr) console.error("Erro ao buscar web_order:", findErr);
 
-        // 2. Atualiza web_orders para aprovado e pending (pronto para cozinha no PDV)
+        // 2. Atualiza web_orders para pending (pronto para cozinha no PDV)
         await supabase
             .from("web_orders")
             .update({ status: 'pending', payment_status: 'approved' })
             .eq("id", mpId);
-
-        // 3. Verifica se a comanda já foi criada para evitar duplicados
-        const { data: existingComanda } = await supabase
-            .from("comandas")
-            .select("id")
-            .eq("id", mpId)
-            .maybeSingle();
-
-        if (!existingComanda && webOrder) {
-            const comandaItems = formatCartToComandaItems(webOrder.items || []);
-            const newComanda = {
-                id: mpId,
-                status: 'open',
-                client: `${webOrder.client_name} - ${webOrder.client_phone}`,
-                date: new Date().toISOString(),
-                items: comandaItems,
-                total: webOrder.total,
-                paid: true,
-                ispageless: true,
-                paymentmethod: 'PIX (Site)'
-            };
-
-            const { error: dbError } = await supabase.from("comandas").insert([newComanda]);
-            if (dbError) console.error("Erro ao criar comanda paga no Supabase:", dbError);
-            else console.log(`🚀 Comanda ${mpId} criada no PDV com status PAGO!`);
-        }
 
         return { approved: true, status: 'approved' };
     } catch (err) {
@@ -209,9 +187,9 @@ app.post("/create_pix", paymentLimiter, async (req, res) => {
         const roundedAmount = Math.round(Number(totalAmount) * 100) / 100;
         console.log(`Criando PIX de R$ ${roundedAmount} para ${clientData.fullName}`);
 
-        // Data de expiração: 24 horas a partir de agora
+        // Data de expiração: 15 minutos a partir de agora
         const expiration = new Date();
-        expiration.setHours(expiration.getHours() + 24);
+        expiration.setMinutes(expiration.getMinutes() + 15);
 
         const payment = new Payment(mpClient);
         const response = await payment.create({
@@ -275,6 +253,24 @@ app.get("/check_payment/:id", async (req, res) => {
     } catch (err) {
         console.error("Erro no check_payment:", err?.message || err);
         return res.json({ approved: false, status: 'pending' });
+    }
+});
+
+// ROTA: ESTORNO DO MERCADO PAGO (Refund)
+app.post("/refund_payment", async (req, res) => {
+    try {
+        const { paymentId } = req.body;
+        if (!paymentId) return res.status(400).json({ error: "paymentId é obrigatório" });
+
+        const payment = new Payment(mpClient);
+        const refundResponse = await payment.refund({ id: paymentId });
+
+        console.log(`Estorno processado para ${paymentId}`, refundResponse.status);
+        
+        return res.json({ success: true, status: refundResponse.status });
+    } catch (err) {
+        console.error("Erro ao estornar pagamento:", err?.message || err);
+        return res.status(500).json({ error: err?.message || "Erro ao processar estorno" });
     }
 });
 

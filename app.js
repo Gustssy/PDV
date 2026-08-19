@@ -397,6 +397,9 @@ const pdvApp = (function () {
         supabase.channel('web-orders-channel')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'web_orders' }, payload => {
                 if (payload.new) {
+                    // Ignorar se não estiver pago (a menos que seja manual)
+                    if (payload.new.payment_status === 'pending' && payload.new.status === 'waiting_payment') return;
+                    
                     webOrders.unshift(payload.new);
                     renderWebOrders();
                     updateWebOrdersBadge();
@@ -407,8 +410,25 @@ const pdvApp = (function () {
             })
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'web_orders' }, payload => {
                 if (payload.new) {
-                    const idx = webOrders.findIndex(o => o.id === payload.new.id);
-                    if (idx > -1) webOrders[idx] = payload.new; else webOrders.unshift(payload.new);
+                    const existingIdx = webOrders.findIndex(o => o.id === payload.new.id);
+                    const isNewToPDV = existingIdx === -1 && payload.new.payment_status === 'approved';
+                    
+                    if (payload.new.status === 'cancellation_requested') {
+                        const oldStatus = existingIdx > -1 ? webOrders[existingIdx].status : null;
+                        if (oldStatus !== 'cancellation_requested') {
+                            showCancellationModal(payload.new);
+                        }
+                    }
+
+                    if (existingIdx > -1) {
+                        webOrders[existingIdx] = payload.new;
+                    } else if (payload.new.payment_status !== 'pending') {
+                        webOrders.unshift(payload.new);
+                        if (payload.new.status === 'pending') {
+                            showWebOrderModal(payload.new);
+                        }
+                    }
+                    
                     renderWebOrders();
                     updateWebOrdersBadge();
                 }
@@ -953,6 +973,90 @@ const pdvApp = (function () {
             await supabase.from('web_orders').update({ status: 'seen' }).eq('id', order.id);
             showToast(`Pedido de ${order.client_name} aceito!`, 'success');
             modal.remove();
+        });
+    }
+
+    async function showCancellationModal(order) {
+        // Toca um alerta de cancelamento
+        try {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(() => {});
+        } catch(e){}
+
+        const modal = document.createElement('div');
+        modal.className = 'web-order-modal-overlay';
+        modal.innerHTML = `
+            <div style="background:#1e293b;width:380px;border-radius:16px;padding:24px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);border:1px solid rgba(239, 68, 68, 0.2);animation:slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+                <div style="display:flex;align-items:center;margin-bottom:16px;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:rgba(239, 68, 68, 0.1);display:flex;align-items:center;justify-content:center;color:#ef4444;font-size:1.2rem;margin-right:12px;">
+                        <i class="fa-solid fa-triangle-exclamation fa-beat"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0;font-size:1.1rem;color:#f8fafc;">Cancelamento Solicitado</h3>
+                        <p style="margin:2px 0 0;font-size:0.85rem;color:#9ca3af;">O cliente quer cancelar o pedido #${order.id.slice(-6)}</p>
+                    </div>
+                </div>
+
+                <div style="font-size:0.9rem;color:#e2e8f0;margin-bottom:12px;background:rgba(0,0,0,0.2);padding:10px;border-radius:8px;">
+                    <strong>Cliente:</strong> ${order.client_name}<br>
+                    <strong>Valor:</strong> R$ ${Number(order.total).toFixed(2).replace('.', ',')}<br>
+                    <strong>Método:</strong> ${order.payment_method === 'bankTransfer' ? 'PIX' : (order.payment_method || 'Cartão')}
+                </div>
+                
+                <p style="font-size:0.85rem;color:#9ca3af;margin-bottom:16px;">
+                    Se você aprovar, o pedido será cancelado, o estoque devolvido e o estorno via Mercado Pago será processado automaticamente.
+                </p>
+
+                <div style="display:flex;gap:10px;">
+                    <button id="btn-refuse-cancel" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#f8fafc;cursor:pointer;font-size:0.9rem;">Recusar</button>
+                    <button id="btn-approve-cancel" style="flex:1.5;padding:10px;border-radius:8px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-weight:700;font-size:0.9rem;"><i class="fa-solid fa-ban" style="margin-right:6px;"></i>Aprovar e Estornar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#btn-refuse-cancel').addEventListener('click', async () => {
+            const previousStatus = order.payment_status === 'approved' ? 'pending' : 'waiting_payment';
+            await supabase.from('web_orders').update({ status: previousStatus }).eq('id', order.id);
+            showToast('Cancelamento recusado. O pedido continua ativo.');
+            modal.remove();
+        });
+
+        modal.querySelector('#btn-approve-cancel').addEventListener('click', async () => {
+            showLoading();
+            try {
+                // 1. Chamar rota de estorno se foi pago online
+                if (order.payment_status === 'approved' && order.payment_method !== 'manual') {
+                    const API_BASE_URL = window.location.hostname.includes('netlify.app') ? 'https://pdv-sdzo.onrender.com' : '';
+                    const res = await fetch(`${API_BASE_URL}/refund_payment`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: order.id })
+                    });
+                    if (!res.ok) throw new Error('Falha na API de estorno');
+                }
+
+                // 2. Devolver o estoque
+                const itemsToRestore = (order.items || []).map(it => ({ id: it.productId || it.id, qty: it.qty }));
+                if (itemsToRestore.length > 0) {
+                    await supabase.rpc('restore_stock_batch', { p_items: itemsToRestore });
+                }
+
+                // 3. Atualizar para cancelado e gravar log em observation
+                const logMsg = `\n[${new Date().toLocaleString()}] Cancelamento Aprovado e Estornado pelo PDV.`;
+                await supabase.from('web_orders').update({ 
+                    status: 'cancelled',
+                    observation: (order.observation || '') + logMsg
+                }).eq('id', order.id);
+
+                showToast('Pedido cancelado e valor estornado com sucesso!', 'success');
+                modal.remove();
+            } catch (err) {
+                console.error(err);
+                showToast('Erro ao processar estorno: ' + err.message, 'error');
+            } finally {
+                hideLoading();
+            }
         });
     }
 
